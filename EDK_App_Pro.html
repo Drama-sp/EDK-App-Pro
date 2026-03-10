@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDK App Pro - Comunidad EDKSTUDIOS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React y ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #020617; 
+            margin: 0; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-in { animation: slideUp 0.5s ease-out forwards; }
+
+        @keyframes wave {
+            0%, 100% { height: 4px; }
+            50% { height: 16px; }
+        }
+        .music-bar {
+            width: 3px;
+            background-color: #ef4444;
+            border-radius: 1px;
+            animation: wave 1s ease-in-out infinite;
+        }
+        .bar-2 { animation-delay: 0.2s; }
+        .bar-3 { animation-delay: 0.4s; }
+
+        #qrcode img {
+            margin: 0 auto;
+            border: 8px solid white;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, className = "w-6 h-6" }) => {
+            const icons = {
+                crown: <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />,
+                shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />,
+                shieldCheck: <React.Fragment><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" /><path d="m9 12 2 2 4-4" /></React.Fragment>,
+                user: <React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></React.Fragment>,
+                users: <React.Fragment><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></React.Fragment>,
+                star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+                home: <React.Fragment><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></React.Fragment>,
+                external: <React.Fragment><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 22 3 22 10" /><line x1="10" y1="14" x2="22" y2="2" /></React.Fragment>,
+                bell: <React.Fragment><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></React.Fragment>,
+                checkCircle: <React.Fragment><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></React.Fragment>,
+                youtube: <React.Fragment><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2C1 8.14 1 12 1 12s0 3.86.46 5.58a2.78 2.78 0 0 0 1.94 2c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2C23 15.86 23 12 23 12s0-3.86-.46-5.58z" /><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" /></React.Fragment>,
+                play: <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />,
+                pause: <React.Fragment><rect x="6" y="4" width="4" height="16" fill="currentColor" /><rect x="14" y="4" width="4" height="16" fill="currentColor" /></React.Fragment>,
+                alert: <React.Fragment><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></React.Fragment>,
+                chevronRight: <polyline points="9 18 15 12 9 6" />,
+                qr: <React.Fragment><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="3" height="3" /><rect x="18" y="18" width="3" height="3" /></React.Fragment>
+            };
+
+            return (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {icons[name] || <circle cx="12" cy="12" r="10" />}
+                </svg>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('home');
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [hasError, setHasError] = useState(false);
+            const [showQR, setShowQR] = useState(false);
+            const [expandedRank, setExpandedRank] = useState(null);
+            const audioRef = useRef(null);
+            const qrRef = useRef(null);
+
+            const youtubeChannel = "https://www.youtube.com/@3ldramaking";
+
+            useEffect(() => {
+                if (showQR && qrRef.current) {
+                    qrRef.current.innerHTML = "";
+                    new QRCode(qrRef.current, {
+                        text: window.location.href,
+                        width: 180,
+                        height: 180,
+                        colorDark: "#020617",
+                        colorLight: "#ffffff",
+                    });
+                }
+            }, [showQR]);
+
+            const toggleMusic = () => {
+                const audio = audioRef.current;
+                if (!audio) return;
+                if (isPlaying) { audio.pause(); setIsPlaying(false); } 
+                else { setHasError(false); audio.play().then(() => setIsPlaying(true)).catch(() => { setHasError(true); setIsPlaying(false); }); }
+            };
+
+            const adminRanks = [
+                { level: 5, name: "Founder / Owner", icon: "crown", color: "from-yellow-500/20", iconColor: "text-yellow-400" },
+                { level: 4, name: "HeadAdmin", icon: "shieldCheck", color: "from-red-500/20", iconColor: "text-red-500", user: "@27kDomin", displayName: "ElDramaKing_YBE" },
+                { level: 3, name: "Admin", icon: "shield", color: "from-orange-500/20", iconColor: "text-orange-500", user: "Khronix", displayName: "" },
+                { level: 2, name: "Moderador", icon: "shield", color: "from-blue-500/20", iconColor: "text-blue-500" },
+                { level: 1, name: "VIP", icon: "star", color: "from-purple-500/20", iconColor: "text-purple-400" },
+            ];
+
+            return (
+                <div className="flex justify-center items-center min-h-screen p-0 sm:p-4">
+                    <audio ref={audioRef} onEnded={() => setIsPlaying(false)} onError={() => setHasError(true)} preload="auto">
+                        <source src="musica.mp3" type="audio/mpeg" />
+                    </audio>
+
+                    <div className="relative w-full max-w-[410px] h-[840px] bg-slate-900 rounded-[3.5rem] shadow-[0_0_80px_rgba(37,99,235,0.2)] border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
+                        
+                        <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[11px] font-bold text-slate-400 italic tracking-widest">
+                            <span>EDK 2.0</span>
+                            <div className="flex gap-1.5 items-center">
+                                <div className="w-4 h-2 bg-blue-500 rounded-full"></div>
+                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        <header className="px-6 py-4 flex justify-between items-center bg-slate-900/80 backdrop-blur-lg border-b border-white/5 sticky top-0 z-40 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex flex-col items-center justify-center border border-white/20 shadow-lg shadow-blue-600/30">
+                                    <span className="text-[11px] font-black leading-none uppercase">EDK</span>
+                                    <span className="text-[5px] font-bold mt-0.5">STUDIOS</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-sm font-black tracking-tighter uppercase italic">EDK App Pro</h1>
+                                    <p className="text-[9px] text-green-400 font-bold uppercase mt-0.5">Verificado ✅</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowQR(!showQR)} className={`p-2 rounded-xl border transition-all ${showQR ? 'bg-white text-blue-600 border-white' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
+                                <Icon name="qr" className="w-5 h-5" />
+                            </button>
+                        </header>
+
+                        <main className="flex-1 overflow-y-auto px-6 pt-4 pb-28 scrollbar-hide text-white">
+                            {showQR ? (
+                                <div className="animate-in space-y-6 pt-10 text-center">
+                                    <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10">
+                                        <h2 className="text-xl font-black italic mb-2 uppercase tracking-tighter">Comparte tu App</h2>
+                                        <p className="text-slate-400 text-[11px] mb-8 leading-relaxed px-4">
+                                            Cuando publiques esta app en internet, este QR se actualizará automáticamente con tu link público.
+                                        </p>
+                                        <div id="qrcode" ref={qrRef} className="bg-white p-2 rounded-2xl inline-block shadow-2xl"></div>
+                                        <div className="mt-8 bg-blue-600/10 p-4 rounded-2xl border border-blue-500/20">
+                                            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">Link Actual</p>
+                                            <p className="text-[9px] text-slate-500 mt-1 truncate">{window.location.href}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setShowQR(false)} className="text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Volver</button>
+                                </div>
+                            ) : (
+                                <>
+                                    {activeTab === 'home' && (
+                                        <div className="space-y-6 animate-in">
+                                            <div className="p-7 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 shadow-2xl relative overflow-hidden group">
+                                                <div className="relative z-10">
+                                                    <h2 className="text-3xl font-black mb-1 italic uppercase tracking-tighter">EDKSTUDIOS</h2>
+                                                    <p className="text-blue-100 text-[11px] mb-8 font-medium max-w-[160px]">Comunidad líder en Roblox.</p>
+                                                    <a href="https://www.roblox.com/share/g/89024247" target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] inline-flex items-center gap-2 no-underline uppercase shadow-xl active:scale-95 transition-all">
+                                                        Entrar al Grupo <Icon name="external" className="w-3 h-3" />
+                                                    </a>
+                                                </div>
+                                                <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
+                                            </div>
+
+                                            <div className="bg-slate-800/40 p-6 rounded-[2.5rem] border border-white/5">
+                                                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-5 flex items-center gap-2">
+                                                    <Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía HD Admin
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {adminRanks.map((rank, i) => (
+                                                        <div key={i} onClick={() => rank.user ? setExpandedRank(expandedRank === rank.level ? null : rank.level) : null}
+                                                             className={`flex flex-col p-4 rounded-3xl bg-gradient-to-r ${rank.color} to-transparent border border-white/5 transition-all cursor-pointer ${expandedRank === rank.level ? 'shadow-lg border-white/20' : ''}`}>
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                                        <Icon name={rank.icon} className={`w-5 h-5 ${rank.iconColor}`} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="font-black text-sm block tracking-tight uppercase">{rank.name}</span>
+                                                                        <span className="text-[9px] text-slate-500 font-bold">Nivel {rank.level}</span>
+                                                                    </div>
+                                                                </div>
+                                                                {rank.user && <Icon name="chevronRight" className={`w-4 h-4 text-slate-600 transition-transform ${expandedRank === rank.level ? 'rotate-90' : ''}`} />}
+                                                            </div>
+                                                            {expandedRank === rank.level && rank.user && (
+                                                                <div className="mt-4 pt-4 border-t border-white/5 animate-in">
+                                                                    <div className="bg-slate-950/50 p-3 rounded-2xl flex items-center gap-3">
+                                                                        <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center"><Icon name="user" className="w-4 h-4 text-blue-400" /></div>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[11px] font-black tracking-tight text-white">{rank.user}</span>
+                                                                            {rank.displayName && <span className="text-[9px] text-slate-500 italic uppercase">{rank.displayName}</span>}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'youtube' && (
+                                        <div className="animate-in space-y-6">
+                                            <div className="text-center bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
+                                                <Icon name="youtube" className="w-12 h-12 text-white mx-auto mb-4" />
+                                                <h2 className="text-xl font-black italic tracking-tighter">@3ldramaking</h2>
+                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg tracking-widest inline-block mt-2">683 SUBS</span>
+                                            </div>
+
+                                            <div className={`p-1.5 rounded-[2.5rem] bg-gradient-to-r transition-all duration-700 ${isPlaying ? 'from-red-500 to-red-800 scale-[1.03] shadow-2xl' : hasError ? 'from-red-900 to-slate-900 border-red-500 border' : 'from-slate-700 to-slate-800'}`}>
+                                                <div className="w-full p-6 bg-slate-900/60 rounded-[2rem] flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <button onClick={toggleMusic} className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-90 ${isPlaying ? 'bg-white text-red-600' : 'bg-red-600 text-white'}`}>
+                                                            <Icon name={isPlaying ? "pause" : hasError ? "alert" : "play"} className="w-6 h-6" />
+                                                        </button>
+                                                        <div className="text-left">
+                                                            <p className={`text-[10px] font-black uppercase ${hasError ? 'text-red-500' : 'text-slate-500'}`}>{hasError ? 'ERROR DE ARCHIVO' : 'Tema Oficial'}</p>
+                                                            <p className="text-sm font-black italic text-white">Build Together</p>
+                                                            {isPlaying && <div className="flex gap-1 items-end mt-1.5 h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'owner' && (
+                                        <div className="animate-in pt-4">
+                                            <div className="bg-slate-800/40 p-8 rounded-[3.5rem] border border-white/5 text-center relative overflow-hidden shadow-2xl">
+                                                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-600/20 to-transparent"></div>
+                                                <div className="relative pt-6 mb-6">
+                                                    <div className="w-32 h-32 bg-gradient-to-tr from-blue-600 via-blue-400 to-cyan-300 rounded-full p-1.5 shadow-2xl mx-auto">
+                                                        <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center border-4 border-slate-900 overflow-hidden">
+                                                            <Icon name="user" className="w-14 h-14 text-white opacity-80" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="absolute bottom-1 right-1/2 translate-x-12 bg-blue-600 p-2 rounded-full border-4 border-slate-900 shadow-xl">
+                                                        <Icon name="crown" className="w-5 h-5 text-white" />
+                                                    </div>
+                                                </div>
+                                                <h2 className="text-2xl font-black italic uppercase tracking-tighter">MUNEEB_ALT</h2>
+                                                <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10">@ElDramaKing_ALT</p>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    <div className="bg-slate-950/60 p-5 rounded-[2rem] border border-white/5 text-left flex justify-between items-center group">
+                                                        <div>
+                                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Estatus Global</p>
+                                                            <p className="text-xs font-black text-blue-100 italic">Founder & Owner</p>
+                                                        </div>
+                                                        <Icon name="checkCircle" className="w-4 h-4 text-green-500" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </main>
+
+                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-10 flex justify-around items-center z-50">
+                            <button onClick={() => {setActiveTab('home'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' && !showQR ? 'text-blue-500 scale-110' : 'text-slate-500 hover:text-white'}`}>
+                                <Icon name="home" className="w-7 h-7" /><span className="text-[9px] font-black uppercase tracking-tighter">Inicio</span>
+                            </button>
+                            <button onClick={() => {setActiveTab('youtube'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'youtube' && !showQR ? 'text-red-500 scale-110' : 'text-slate-500 hover:text-white'}`}>
+                                <Icon name="youtube" className="w-7 h-7" /><span className="text-[9px] font-black uppercase tracking-tighter">YouTube</span>
+                            </button>
+                            <button onClick={() => {setActiveTab('owner'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'owner' && !showQR ? 'text-blue-500 scale-110' : 'text-slate-500 hover:text-white'}`}>
+                                <Icon name="user" className="w-7 h-7" /><span className="text-[9px] font-black uppercase tracking-tighter">Owner</span>
+                            </button>
+                        </nav>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
