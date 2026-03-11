@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>EDK App Pro - Comunidad EDKSTUDIOS</title>
     
     <link rel="manifest" href="manifest.json">
@@ -50,10 +50,16 @@
         .premium-glow { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); }
 
         #qrcode img { margin: 0 auto; border: 6px solid white; border-radius: 12px; }
+
+        /* Ajuste para Notch en móviles modernos */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .safe-top { padding-top: env(safe-area-inset-top); }
+            .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root" class="w-full h-full flex justify-center items-center"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
@@ -112,21 +118,25 @@
             }, [showQR]);
 
             return (
-                <div className="flex justify-center items-center h-screen w-full bg-slate-950 p-0 sm:p-4 text-white">
-                    <div className="relative w-full max-w-[410px] h-full sm:h-[840px] bg-slate-900 rounded-none sm:rounded-[3.5rem] shadow-2xl border-x-0 sm:border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
+                <div className="w-full h-full flex justify-center items-center">
+                    {/* Contenedor Adaptativo: Pantalla completa en móvil, Mockup en PC */}
+                    <div className="relative w-full h-full sm:w-[410px] sm:h-[840px] bg-slate-900 sm:rounded-[3.5rem] sm:shadow-2xl sm:border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
-                        <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[10px] font-black text-slate-500 tracking-widest uppercase">
-                            <span>EDK PRO v12.1</span>
+                        {/* Barra Superior Estilo Móvil (Visible en PC, Oculta en Notch Móvil si se configura PWA) */}
+                        <div className="h-12 sm:h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[10px] font-black text-slate-500 tracking-widest uppercase leading-none safe-top">
+                            <span className="sm:inline hidden">EDK PRO v12.5</span>
+                            <span className="sm:hidden inline">12:00</span>
                             <div className="flex gap-2 items-center">
                                 <div className="w-4 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                             </div>
                         </div>
 
+                        {/* Cabecera de la App */}
                         <header className="px-6 py-6 flex justify-between items-center bg-slate-900/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex flex-col items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
-                                    <span className="text-[10px] font-black absolute italic uppercase">EDK</span>
+                                    <span className="text-[10px] font-black absolute italic uppercase leading-none">EDK</span>
                                 </div>
                                 <div>
                                     <h1 className="text-sm font-black tracking-tighter italic uppercase leading-none mb-1">EDK App Pro</h1>
@@ -138,7 +148,8 @@
                             </button>
                         </header>
 
-                        <main className="flex-1 overflow-y-auto px-6 pt-4 pb-28 scrollbar-hide">
+                        {/* Contenido Principal */}
+                        <main className="flex-1 overflow-y-auto px-6 pt-4 pb-32 scrollbar-hide">
                             {showQR ? (
                                 <div className="animate-in space-y-6 pt-10 text-center">
                                     <div className="glass-card p-8 rounded-[3rem]">
@@ -152,7 +163,6 @@
                                 <>
                                     {activeTab === 'home' && (
                                         <div className="space-y-6 animate-in">
-                                            {/* BANNER RESTAURADO AL FONDO ANTERIOR */}
                                             <div className="p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group min-h-[220px] flex flex-col justify-end border border-white/10 bg-gradient-to-br from-blue-600 to-indigo-900">
                                                 <div className="relative z-10">
                                                     <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none">EDKSTUDIOS</h2>
@@ -168,7 +178,7 @@
                                                     <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5 transition-all">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-red-500 shadow-inner border border-white/5"><Icon name="shield" className="w-5 h-5" /></div>
-                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">@27kDomin</p></div>
+                                                            <div><p className="font-black text-sm uppercase leading-none mb-1 text-white">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">@27kDomin</p></div>
                                                         </div>
                                                         <VerifiedBadge />
                                                     </div>
@@ -179,9 +189,9 @@
 
                                     {activeTab === 'youtube' && (
                                         <div className="animate-in space-y-6 text-center pt-4">
-                                            <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
+                                            <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl text-white">
                                                 <YouTubeIcon className="w-12 h-12 text-white mx-auto mb-4" />
-                                                <h2 className="text-xl font-black italic uppercase tracking-tighter text-white uppercase leading-none">@3ldramaking</h2>
+                                                <h2 className="text-xl font-black italic uppercase tracking-tighter uppercase leading-none">@3ldramaking</h2>
                                                 <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest leading-none uppercase">683 SUBS</span>
                                             </div>
                                             <a href="https://www.youtube.com/@3ldramaking" target="_blank" className="bg-red-600/20 border border-red-500/30 text-white w-full py-5 rounded-3xl font-black text-xs uppercase flex items-center justify-center no-underline shadow-xl uppercase tracking-widest">Ir al Canal</a>
@@ -190,7 +200,7 @@
 
                                     {activeTab === 'team' && (
                                         <div className="animate-in space-y-6 pt-4 pb-10">
-                                            <div className="flex items-center gap-3 mb-6 px-2">
+                                            <div className="flex items-center gap-3 mb-6 px-2 text-white">
                                                 <PremiumIcon className="w-8 h-8 text-white" />
                                                 <h2 className="text-2xl font-black italic uppercase tracking-tighter">Staff Oficial</h2>
                                             </div>
@@ -198,12 +208,12 @@
                                                 {staffList.map((person, idx) => (
                                                     <div key={idx} className="team-card p-6 rounded-[2.2rem] shadow-xl relative overflow-hidden group">
                                                         <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-8 -mt-8 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors"></div>
-                                                        <div className="flex flex-col gap-2 relative z-10">
+                                                        <div className="flex flex-col gap-2 relative z-10 text-white">
                                                             <div className="flex items-center justify-between">
                                                                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${person.color}`}>{person.role}</span>
                                                                 {person.verified && <VerifiedBadge className="w-5 h-5 shadow-lg" />}
                                                             </div>
-                                                            <h3 className="text-lg font-black tracking-tight text-white uppercase italic leading-none">{person.names}</h3>
+                                                            <h3 className="text-lg font-black tracking-tight uppercase italic leading-none">{person.names}</h3>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -213,7 +223,7 @@
 
                                     {activeTab === 'owner' && (
                                         <div className="animate-in pt-4 text-center">
-                                            <div className="glass-card p-10 rounded-[4rem] relative overflow-hidden shadow-2xl">
+                                            <div className="glass-card p-10 rounded-[4rem] relative overflow-hidden shadow-2xl text-white">
                                                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-600/20 to-transparent"></div>
                                                 <div className="relative pt-6 mb-6">
                                                     <div className="w-32 h-32 bg-gradient-to-tr from-blue-600 via-blue-400 to-cyan-300 rounded-full p-1.5 mx-auto profile-glow">
@@ -230,7 +240,7 @@
                                                     <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">MUNEEB_ALT</h2>
                                                     <VerifiedBadge className="w-7 h-7 shadow-lg" />
                                                 </div>
-                                                <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10 italic leading-none">@ElDramaKing_ALT</p>
+                                                <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10 italic">@ElDramaKing_ALT</p>
                                                 <div className="bg-slate-950/60 p-6 rounded-[2.5rem] border border-white/5 text-left flex justify-between items-center group shadow-inner">
                                                     <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none uppercase tracking-tighter">Rango Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter leading-none uppercase tracking-tighter">Founder & Owner</p></div>
                                                     <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shadow-lg"><VerifiedBadge className="w-6 h-6" /></div>
@@ -242,12 +252,13 @@
                             )}
                         </main>
 
-                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-4 flex justify-around items-center z-[100]">
+                        {/* Navegación Inferior (Adaptada) */}
+                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-4 flex justify-around items-center z-[100] safe-bottom">
                             <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'home' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
                                 <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Inicio</span>
                             </button>
-                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <YouTubeIcon className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase leading-none">Youtube</span>
+                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' ? 'text-red-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <YouTubeIcon className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase">Youtube</span>
                             </button>
                             
                             <div className="relative -top-8 flex gap-4">
@@ -263,7 +274,9 @@
                                 <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase leading-none uppercase tracking-widest">Owner</span>
                             </button>
                         </nav>
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
+
+                        {/* Home Indicator iOS Style (Solo visible en PC) */}
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full sm:block hidden"></div>
                     </div>
                 </div>
             );
