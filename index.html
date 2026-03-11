@@ -25,19 +25,42 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@700&display=swap');
         
-        body { font-family: 'Inter', sans-serif; background-color: #020617; margin: 0; overflow: hidden; color: white; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #020617; 
+            margin: 0; 
+            overflow: hidden; 
+            color: white; 
+            touch-action: manipulation;
+        }
+
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
         .animate-in { animation: slideIn 0.3s ease-out forwards; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-        .glass-card { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        /* Contenedor Maestro Unificado (Igual al de LOUNGE) */
+        .master-card { 
+            background: rgba(30, 41, 59, 0.4); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(15px);
+            border-radius: 2.5rem;
+            overflow: hidden;
+            width: 100%;
+            height: auto;
+            position: relative;
+            padding: 2rem; /* p-8 */
+        }
+        @media (min-width: 640px) {
+            .master-card { 
+                border-radius: 3.1rem; 
+                padding: 2.5rem; /* p-10 */
+            }
+        }
+        
         .xp-bar-glow { box-shadow: 0 0 15px var(--theme-color-soft); }
         
-        @keyframes alert-pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        .media-alert { animation: alert-pulse 2s infinite; }
-
         .premium-glow { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); }
 
         @supports (padding-top: env(safe-area-inset-top)) { 
@@ -54,11 +77,19 @@
         }
         .edk-input:focus { border-color: var(--theme-color); background: rgba(255, 255, 255, 0.05); }
 
-        #qrcode img, #vip-qrcode img { margin: 0 auto; border-radius: 0.5rem; border: 4px solid white; }
-        #reader { border: none !important; border-radius: 1.5rem; overflow: hidden; }
-        #reader__dashboard_section_csr button {
-            background: white !important; color: black !important; border-radius: 0.5rem !important;
-            padding: 5px 10px !important; text-transform: uppercase !important; font-weight: 900 !important; font-size: 10px !important;
+        #qrcode img, #vip-qrcode img { 
+            margin: 0 auto; 
+            border-radius: 0.8rem; 
+            border: 6px solid white;
+            max-width: 100%;
+            height: auto !important;
+        }
+
+        #reader { 
+            border: none !important; 
+            border-radius: 1.5rem; 
+            overflow: hidden;
+            width: 100% !important;
         }
     </style>
 </head>
@@ -68,7 +99,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- Componentes de Iconos ---
         const VerifiedBadge = ({ className = "w-4 h-4", color = "#00A2FF" }) => (
             <svg viewBox="0 0 100 100" className={className}>
                 <rect x="15" y="15" width="70" height="70" rx="10" fill={color} transform="rotate(-10 50 50)" />
@@ -154,7 +184,7 @@
             useEffect(() => {
                 if (activeTab === 'scanner' && qrRef.current) {
                     qrRef.current.innerHTML = "";
-                    new QRCode(qrRef.current, { text: window.location.href, width: 140, height: 140 });
+                    new QRCode(qrRef.current, { text: window.location.href, width: 256, height: 256 });
                     startScanner();
                 } else { stopScanner(); }
             }, [activeTab]);
@@ -162,14 +192,20 @@
             useEffect(() => {
                 if (showID && generatedID && cardQrRef.current) {
                     cardQrRef.current.innerHTML = "";
-                    new QRCode(cardQrRef.current, { text: generatedID, width: 60, height: 60 });
+                    new QRCode(cardQrRef.current, { text: generatedID, width: 128, height: 128 });
                 }
             }, [showID, generatedID]);
 
             const startScanner = () => {
-                if (!document.getElementById("reader")) return;
-                html5Scanner.current = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-                html5Scanner.current.render(onScanSuccess);
+                setTimeout(() => {
+                    if (!document.getElementById("reader")) return;
+                    html5Scanner.current = new Html5QrcodeScanner("reader", { 
+                        fps: 10, 
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    });
+                    html5Scanner.current.render(onScanSuccess);
+                }, 100);
             };
 
             const stopScanner = () => { if (html5Scanner.current) html5Scanner.current.clear().catch(e => {}); };
@@ -188,6 +224,7 @@
                     'PRM': { rank: 'PREMIUM', color: 'text-yellow-400', msg: 'Socio VIP de EDK Studios.' }
                 };
                 setScanResult(ranks[suffix] || { rank: "???", color: "text-white", msg: "ID Válido, Rango Desconocido." });
+                stopScanner();
             };
 
             const buyItem = (item) => {
@@ -204,11 +241,10 @@
             };
 
             return (
-                <div className="w-full h-full flex justify-center items-center">
-                    <div className="relative w-full h-full sm:w-[410px] sm:h-[840px] bg-slate-900 sm:rounded-[3.5rem] sm:shadow-2xl sm:border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
+                <div className="w-full h-full flex justify-center items-center overflow-hidden">
+                    <div className="relative w-full h-full sm:max-w-[410px] sm:max-h-[840px] bg-slate-900 sm:rounded-[3.5rem] sm:shadow-2xl sm:border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
-                        {/* Status Bar */}
-                        <div className="h-20 bg-slate-950 flex flex-col px-6 pt-6 z-50 border-b border-white/5 safe-top">
+                        <header className="flex-shrink-0 h-20 bg-slate-950 flex flex-col px-6 pt-6 z-50 border-b border-white/5 safe-top">
                             <div className="flex justify-between items-center mb-2">
                                 <div className="flex items-center gap-3">
                                     <div className="text-left">
@@ -226,108 +262,111 @@
                                         <YouTubeIcon className="w-6 h-6 text-red-500" />
                                         {hasNewVideo && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full media-alert"></div>}
                                     </button>
-                                    <img src="icon.jpg" className="w-8 h-8 rounded-lg border border-white/10" alt="Logo" />
+                                    <img src="icon.jpg" className="w-8 h-8 rounded-lg border border-white/10 shadow-lg" alt="Logo" />
                                 </div>
                             </div>
                             <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden xp-bar-glow">
                                 <div className="h-full transition-all duration-1000" style={{ width: `${xp % 100}%`, backgroundColor: activeTheme.color }}></div>
                             </div>
-                        </div>
+                        </header>
 
-                        <main className="flex-1 overflow-y-auto px-6 pt-6 pb-32 scrollbar-hide">
+                        <main className="flex-grow overflow-y-auto scrollbar-hide px-4 sm:px-6 pt-6 pb-32">
                             
                             {activeTab === 'home' && (
-                                <div className="space-y-6 animate-in">
-                                    <div className={`p-8 rounded-[3rem] shadow-2xl relative overflow-hidden min-h-[220px] flex flex-col justify-end border border-white/10 bg-gradient-to-br ${activeTheme.grad}`}>
+                                <div className="animate-in space-y-6">
+                                    <div className={`master-card bg-gradient-to-br ${activeTheme.grad} border-none min-h-[220px] flex flex-col justify-end`}>
                                         <div className="relative z-10 text-left">
-                                            <h2 className="text-4xl font-black italic leading-none mb-1 tracking-tighter uppercase leading-none">EDKSTUDIOS</h2>
-                                            <p className="text-[10px] mb-8 font-medium italic opacity-70 uppercase tracking-widest leading-none">Comunidad oficial de Roblox</p>
+                                            <h2 className="text-3xl sm:text-4xl font-black italic leading-none mb-1 tracking-tighter uppercase">EDKSTUDIOS</h2>
+                                            <p className="text-[9px] sm:text-[10px] mb-8 font-medium italic opacity-70 uppercase tracking-widest leading-none">Oficial Community</p>
                                             <div className="flex gap-2">
-                                                <a href={groupLink} target="_blank" className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl active:scale-95 transition-all">Unirse <Icon name="external" className="w-3 h-3" /></a>
-                                                <button onClick={() => setActiveTab('team')} className="bg-white/10 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase border border-white/20 active:scale-95 transition-all">Staff</button>
+                                                <a href={groupLink} target="_blank" className="bg-white text-black px-5 py-3 rounded-2xl font-black text-[10px] uppercase shadow-xl no-underline">Unirse</a>
+                                                <button onClick={() => setActiveTab('team')} className="bg-white/10 text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase border border-white/20">Staff</button>
                                             </div>
                                         </div>
                                         <Icon name="home" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
                                     </div>
 
-                                    {/* SECCIÓN MUNEEB_ALT - PERFIL DE DUEÑO */}
-                                    <div className="glass-card p-6 rounded-[2.5rem] flex items-center justify-between border-l-4" style={{borderColor: activeTheme.color}}>
+                                    <div className="master-card flex items-center justify-between border-l-4" style={{borderColor: activeTheme.color}}>
                                         <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 overflow-hidden relative group">
-                                                <img src="icon.jpg" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt="Muneeb_ALT" />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                                {inventory.includes('badge_elite') && <div className="absolute top-0 right-0 p-0.5">🌟</div>}
+                                            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 overflow-hidden">
+                                                <img src="icon.jpg" className="w-full h-full object-cover" alt="Muneeb_ALT" />
                                             </div>
                                             <div className="text-left">
                                                 <div className="flex items-center gap-1.5">
-                                                    <p className="font-black text-sm uppercase leading-none italic tracking-tight">Muneeb_ALT</p>
-                                                    <VerifiedBadge color={activeTheme.color} className="w-3.5 h-3.5" />
+                                                    <p className="font-black text-sm uppercase italic leading-none">Muneeb_ALT</p>
+                                                    <VerifiedBadge color={activeTheme.color} className="w-4 h-4" />
                                                 </div>
-                                                <p className="text-[9px] text-white/40 font-bold uppercase tracking-[0.2em] mt-1 italic">
-                                                    {inventory.includes('custom_status') ? 'SOCIO ELITE EDK' : 'FOUNDER & OWNER'}
-                                                </p>
+                                                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mt-1">FOUNDER & OWNER</p>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                                            <span className="text-[7px] font-black uppercase text-white/20">Online</span>
-                                        </div>
-                                    </div>
-
-                                    {/* SECCIÓN REDES SOCIALES (YouTube / Discord) */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <button onClick={() => window.open(youtubeChannel)} className="glass-card p-5 rounded-[2.2rem] flex flex-col items-center gap-2 active:scale-95 transition-all">
-                                            <YouTubeIcon className="w-8 h-8 text-red-600" />
-                                            <span className="text-[8px] font-black uppercase tracking-widest">Canal</span>
-                                        </button>
-                                        <button onClick={() => window.open(discordLink)} className="glass-card p-5 rounded-[2.2rem] flex flex-col items-center gap-2 active:scale-95 transition-all">
-                                            <Icon name="discord" className="w-8 h-8 text-[#5865F2]" />
-                                            <span className="text-[8px] font-black uppercase tracking-widest">Discord</span>
-                                        </button>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
                                     </div>
                                 </div>
                             )}
 
-                            {activeTab === 'team' && (
-                                <div className="animate-in space-y-4 pt-4 text-left">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <RobloxPremiumIcon className="w-8 h-8 text-white" />
-                                        <h2 className="text-2xl font-black italic uppercase tracking-tighter">Staff Oficial</h2>
+                            {activeTab === 'youtube' && (
+                                <div className="animate-in space-y-6">
+                                    <div className="master-card text-center bg-red-600/10 border-red-500/20">
+                                        <YouTubeIcon className="w-16 h-16 text-red-600 mx-auto mb-4" />
+                                        <h2 className="text-2xl font-black italic uppercase mb-2">YouTube</h2>
+                                        <p className="text-slate-400 text-[10px] uppercase font-bold mb-8 opacity-60">Contenido de @3ldramaking</p>
+                                        <a href={youtubeChannel} target="_blank" className="bg-red-600 text-white w-full py-4 rounded-3xl font-black text-[10px] uppercase block no-underline shadow-xl active:scale-95 transition-all">Abrir Canal</a>
                                     </div>
-                                    <p className="text-[9px] text-white/40 font-bold uppercase mb-4 tracking-[0.2em] italic">Agradecimientos especiales al equipo administrativo</p>
-                                    {staffList.map((person, idx) => (
-                                        <div key={idx} className="glass-card p-6 rounded-[2.2rem] shadow-xl relative overflow-hidden group">
-                                            <div className="flex flex-col gap-2 relative z-10">
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${person.color}`}>{person.role}</span>
-                                                    {person.verified && <VerifiedBadge color={activeTheme.color} className="w-5 h-5" />}
-                                                </div>
-                                                <h3 className="text-lg font-black tracking-tight uppercase italic leading-none">{person.names}</h3>
-                                            </div>
+                                    <div className="master-card text-center bg-indigo-600/10 border-indigo-500/20">
+                                        <Icon name="discord" className="w-16 h-16 text-[#5865F2] mx-auto mb-4" />
+                                        <h2 className="text-2xl font-black italic uppercase mb-2 text-white">Discord</h2>
+                                        <p className="text-slate-400 text-[10px] uppercase font-bold mb-8 opacity-60">Comunidad oficial EDK</p>
+                                        <a href={discordLink} target="_blank" className="bg-[#5865F2] text-white w-full py-4 rounded-3xl font-black text-[10px] uppercase block no-underline shadow-xl active:scale-95 transition-all">Servidor Oficial</a>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'scanner' && (
+                                <div className="animate-in space-y-6">
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3"><Icon name="qr" className="w-8 h-8" style={{color: activeTheme.color}} /> Scanner</h2>
+                                    <div className="master-card space-y-6">
+                                        <div className="text-left">
+                                            <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1 italic">Identidad Digital</p>
+                                            <h3 className="text-lg font-black uppercase italic leading-none text-white">Cámara en Vivo</h3>
                                         </div>
-                                    ))}
+                                        <div id="reader" className="w-full aspect-square bg-black/60 rounded-3xl shadow-inner"></div>
+                                        {scanResult && (
+                                            <div className="animate-in p-5 rounded-[2rem] bg-white/5 border border-white/10 text-center">
+                                                <p className={`text-xs font-black uppercase tracking-widest ${scanResult.color}`}>Rango: {scanResult.rank}</p>
+                                                <p className="text-[10px] opacity-60 italic mt-1">{scanResult.msg}</p>
+                                                <button onClick={() => {setScanResult(null); startScanner();}} className="mt-4 text-[8px] font-black uppercase px-4 py-2 border border-white/10 rounded-xl">Reiniciar</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="master-card text-center">
+                                        <p className="text-[9px] font-black opacity-40 uppercase mb-6 italic">Compartir la Aplicación</p>
+                                        <div className="bg-white p-5 rounded-[2rem] inline-block shadow-2xl">
+                                            <div id="qrcode" ref={qrRef}></div>
+                                        </div>
+                                        <p className="text-[9px] font-bold text-slate-500 mt-6 uppercase opacity-40 italic tracking-widest leading-none">Escanea para Abrir</p>
+                                    </div>
                                 </div>
                             )}
 
                             {activeTab === 'market' && (
-                                <div className="animate-in space-y-6 pt-4 text-left">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3"><Icon name="cart" className="w-8 h-8 text-yellow-400" /> Mercado EDK</h2>
-                                    <div className="space-y-4 pb-10">
+                                <div className="animate-in space-y-6">
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3"><Icon name="cart" className="w-8 h-8 text-yellow-400" /> Mercado</h2>
+                                    <div className="master-card space-y-4">
                                         {[
-                                            { id: 'badge_elite', name: 'Insignia Élite', price: 200, icon: '🌟', desc: 'Sello estelar en tu perfil' },
-                                            { id: 'gold_frame', name: 'Marco de Oro', price: 500, icon: '🖼️', desc: 'Borde premium para el Carnet' },
-                                            { id: 'custom_status', name: 'Rango Especial', price: 1000, icon: '👑', desc: 'Cambia tu status a ELITE' }
+                                            { id: 'badge_elite', name: 'Insignia Élite', price: 200, icon: '🌟', desc: 'Sello estelar en perfil' },
+                                            { id: 'gold_frame', name: 'Marco de Oro', price: 500, icon: '🖼️', desc: 'Borde premium para carnet' },
+                                            { id: 'custom_status', name: 'Rango Especial', price: 1000, icon: '👑', desc: 'Status ELITE en sistema' }
                                         ].map(item => (
-                                            <div key={item.id} className={`glass-card p-5 rounded-[2.5rem] flex items-center justify-between ${inventory.includes(item.id) ? 'opacity-50' : ''}`}>
+                                            <div key={item.id} className={`p-5 rounded-[2rem] flex items-center justify-between border border-white/5 bg-white/5 ${inventory.includes(item.id) ? 'opacity-30' : ''}`}>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-3xl">{item.icon}</div>
                                                     <div className="text-left">
-                                                        <p className="font-black text-xs uppercase mb-1">{item.name}</p>
-                                                        <p className="text-[9px] text-slate-400 leading-none">{item.desc}</p>
+                                                        <p className="font-black text-[11px] uppercase mb-0.5">{item.name}</p>
+                                                        <p className="text-[9px] opacity-40 leading-none">{item.desc}</p>
                                                     </div>
                                                 </div>
                                                 <button onClick={() => buyItem(item)} disabled={inventory.includes(item.id) || coins < item.price} className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase ${inventory.includes(item.id) ? 'bg-green-500/20 text-green-400' : 'bg-white text-black active:scale-95 transition-all'}`}>
-                                                    {inventory.includes(item.id) ? 'POSEÍDO' : `${item.price} XP`}
+                                                    {inventory.includes(item.id) ? 'PROPIO' : `${item.price} XP`}
                                                 </button>
                                             </div>
                                         ))}
@@ -335,117 +374,95 @@
                                 </div>
                             )}
 
-                            {activeTab === 'youtube' && (
-                                <div className="animate-in space-y-6 pt-4">
-                                    <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-2xl relative overflow-hidden text-center">
-                                        <YouTubeIcon className="w-14 h-14 text-red-600 mx-auto mb-4" />
-                                        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 leading-none">Contenido YouTube</h2>
-                                        <p className="text-slate-400 text-[10px] mb-6 font-bold uppercase tracking-widest leading-relaxed">Videos, Shorts y Directos de @3ldramaking.</p>
-                                        <a href={youtubeChannel} target="_blank" className="bg-red-600 text-white w-full py-4 rounded-2xl font-black text-xs uppercase block no-underline shadow-xl active:scale-95 transition-all tracking-widest">Abrir Canal</a>
-                                    </div>
-                                    <div className="bg-indigo-600/10 p-8 rounded-[3rem] border border-indigo-500/20 shadow-2xl relative overflow-hidden text-center">
-                                        <Icon name="discord" className="w-14 h-14 text-[#5865F2] mx-auto mb-4" />
-                                        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 leading-none text-white">Comunidad Discord</h2>
-                                        <p className="text-slate-400 text-[10px] mb-6 font-bold uppercase tracking-widest leading-relaxed">Únete al servidor oficial para hablar con el equipo.</p>
-                                        <a href={discordLink} target="_blank" className="bg-[#5865F2] text-white w-full py-4 rounded-2xl font-black text-xs uppercase block no-underline shadow-xl active:scale-95 transition-all tracking-widest">Unirse al Discord</a>
-                                    </div>
-                                </div>
-                            )}
-
                             {activeTab === 'vip_card' && (
-                                <div className="animate-in space-y-6 pt-4 text-left">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3"><Icon name="id" className="w-8 h-8" style={{color: activeTheme.color}} /> Identidad EDK</h2>
-                                    {!showID ? (
-                                        <div className="glass-card p-8 rounded-[3rem] space-y-4">
-                                            <input type="text" placeholder="Usuario Roblox" value={vipName} onChange={(e) => setVipName(e.target.value)} className="w-full edk-input rounded-2xl p-5 text-center text-sm uppercase"/>
-                                            <div className="flex flex-col gap-2">
-                                                <p className="text-[9px] font-black uppercase text-white/40 tracking-widest text-left ml-2 italic">Selecciona Rango</p>
+                                <div className="animate-in space-y-6">
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3"><Icon name="id" className="w-8 h-8" style={{color: activeTheme.color}} /> Identidad</h2>
+                                    <div className="master-card text-center">
+                                        {!showID ? (
+                                            <div className="space-y-6">
+                                                <input type="text" placeholder="Usuario Roblox" value={vipName} onChange={(e) => setVipName(e.target.value)} className="w-full edk-input rounded-[1.5rem] p-5 text-center text-sm uppercase font-bold"/>
                                                 <div className="grid grid-cols-4 gap-2">
                                                     {['FA', 'SB', 'ADM', 'PRM'].map(r => (
-                                                        <button key={r} onClick={() => setVipRank(r)} className={`py-2 rounded-xl text-[10px] font-black border transition-all ${vipRank === r ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40'}`}>{r}</button>
+                                                        <button key={r} onClick={() => setVipRank(r)} className={`py-3 rounded-xl text-[10px] font-black border transition-all ${vipRank === r ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40'}`}>{r}</button>
                                                     ))}
                                                 </div>
+                                                <button onClick={() => { if(vipName.length > 2) { setGeneratedID(`EDK-${vipName.slice(0,3).toUpperCase()}-${Math.floor(1000+Math.random()*9000)}-${vipRank}`); setShowID(true); setXp(p => p + 75); }}} className="w-full py-5 rounded-[1.5rem] font-black text-[10px] uppercase text-white shadow-xl active:scale-95 transition-all" style={{backgroundColor: activeTheme.color}}>Generar Carnet</button>
                                             </div>
-                                            <button onClick={() => { if(vipName.length > 2) { setGeneratedID(`EDK-${vipName.slice(0,3).toUpperCase()}-${Math.floor(1000+Math.random()*9000)}-${vipRank}`); setShowID(true); setXp(p => p + 75); }}} className="w-full py-5 rounded-2xl font-black text-xs uppercase text-white shadow-xl" style={{backgroundColor: activeTheme.color}}>Generar Carnet</button>
-                                        </div>
-                                    ) : (
-                                        <div className="animate-in flex flex-col items-center">
-                                            <div className={`w-full aspect-[1.6/1] rounded-[2rem] p-6 relative overflow-hidden shadow-2xl border transition-all ${inventory.includes('gold_frame') ? 'border-yellow-400 border-4 shadow-yellow-400/20' : 'border-white/20'}`} style={{backgroundColor: activeTheme.color}}>
-                                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-8 -mt-8 rounded-full blur-xl"></div>
-                                                <div className="flex justify-between items-start mb-6 relative z-10">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest leading-none">EDK OFFICIAL VIP</p>
-                                                    <div id="vip-qrcode" ref={cardQrRef}></div>
+                                        ) : (
+                                            <div className="flex flex-col items-center animate-in">
+                                                <div className={`w-full aspect-[1.6/1] rounded-[2rem] p-6 relative overflow-hidden shadow-2xl border transition-all ${inventory.includes('gold_frame') ? 'border-yellow-400 border-4 shadow-yellow-400/20' : 'border-white/20'}`} style={{backgroundColor: activeTheme.color}}>
+                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-8 -mt-8 rounded-full blur-xl"></div>
+                                                    <div className="flex justify-between items-start mb-6 relative z-10">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest leading-none">EDK OFFICIAL VIP</p>
+                                                        <div className="p-1.5 bg-white rounded-lg"><div id="vip-qrcode" ref={cardQrRef}></div></div>
+                                                    </div>
+                                                    <p className="text-3xl font-black uppercase italic leading-none mb-6 relative z-10 truncate text-white">{vipName}</p>
+                                                    <div className="flex justify-between items-end relative z-10 text-white text-left">
+                                                        <div><p className="text-[6px] opacity-50 font-black uppercase">MEMBER ID</p><p className="text-[10px] font-bold" style={{fontFamily: 'JetBrains Mono'}}>{generatedID}</p></div>
+                                                        {inventory.includes('badge_elite') && <div className="text-2xl drop-shadow-lg">🌟</div>}
+                                                    </div>
                                                 </div>
-                                                <p className="text-3xl font-black uppercase italic leading-none mb-6 relative z-10 truncate text-white">{vipName}</p>
-                                                <div className="flex justify-between items-end relative z-10 text-white text-left">
-                                                    <div><p className="text-[6px] opacity-50 font-black uppercase">MEMBER ID</p><p className="text-[10px] font-bold uppercase tracking-tighter" style={{fontFamily: 'JetBrains Mono'}}>{generatedID}</p></div>
-                                                    {inventory.includes('badge_elite') && <div className="text-2xl drop-shadow-lg">🌟</div>}
-                                                </div>
-                                            </div>
-                                            <button onClick={() => setShowID(false)} className="mt-8 text-[10px] font-black text-slate-500 uppercase border-b border-white/5 pb-1">Nuevo Registro</button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === 'scanner' && (
-                                <div className="animate-in space-y-6 pt-4 text-left">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3"><Icon name="qr" className="w-8 h-8" style={{color: activeTheme.color}} /> Scanner Pro</h2>
-                                    <div className="glass-card p-6 rounded-[2.5rem] space-y-6">
-                                        <div className="text-left">
-                                            <p className="text-[9px] font-black uppercase text-white/40 tracking-[0.2em] mb-2 italic">Cámara en Tiempo Real</p>
-                                            <h3 className="text-lg font-black uppercase italic leading-none text-white">Escáner VIP</h3>
-                                        </div>
-                                        <div id="reader" className="w-full aspect-square bg-slate-950/50"></div>
-                                        {scanResult && (
-                                            <div className="animate-in p-5 rounded-2xl bg-white/5 border border-white/10 text-center">
-                                                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${scanResult.color || 'text-white'}`}>Rango: {scanResult.rank}</p>
-                                                <p className="text-[10px] opacity-50 italic">{scanResult.msg}</p>
-                                                <button onClick={() => {setScanResult(null); startScanner();}} className="mt-4 text-[8px] font-black uppercase border border-white/10 px-4 py-2 rounded-lg">Reset</button>
+                                                <button onClick={() => setShowID(false)} className="mt-8 text-[9px] font-black text-slate-500 uppercase border-b border-white/5 pb-1 active:text-white transition-colors">Reset Identidad</button>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="glass-card p-8 rounded-[3rem] text-center">
-                                        <p className="text-[9px] font-black opacity-40 uppercase mb-4 italic tracking-widest">Compartir App</p>
-                                        <div id="qrcode" ref={qrRef} className="flex justify-center"></div>
+                                </div>
+                            )}
+
+                            {activeTab === 'team' && (
+                                <div className="animate-in space-y-6 pb-10">
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3"><RobloxPremiumIcon className="w-8 h-8 text-white" /> Staff</h2>
+                                    <div className="master-card space-y-4">
+                                        <p className="text-[9px] opacity-40 uppercase font-black italic mb-4 tracking-widest">Agradecimientos al equipo EDK</p>
+                                        {staffList.map((person, idx) => (
+                                            <div key={idx} className="p-5 rounded-[2rem] border border-white/5 bg-white/5 flex flex-col gap-1 hover:bg-white/10 transition-colors">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${person.color}`}>{person.role}</span>
+                                                    {person.verified && <VerifiedBadge color={activeTheme.color} className="w-4 h-4" />}
+                                                </div>
+                                                <h3 className="text-lg font-black tracking-tight uppercase italic leading-none">{person.names}</h3>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
 
                             {activeTab === 'secret' && (
                                 <div className="animate-in h-full flex flex-col pt-4 items-center">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-10 w-full text-left flex items-center gap-3"><Icon name="lock" className="w-8 h-8" style={{color: activeTheme.color}} /> Lounge</h2>
-                                    {!isUnlocked ? (
-                                        <div className="glass-card p-10 rounded-[3rem] text-center w-full max-w-[300px]">
-                                            <div className="flex justify-center gap-3 mb-10">
-                                                {[...Array(4)].map((_, i) => (
-                                                    <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${pin.length > i ? 'bg-white border-white scale-110 shadow-[0_0_10px_white]' : 'border-white/20'}`} style={{backgroundColor: pin.length > i ? activeTheme.color : 'transparent'}}></div>
-                                                ))}
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3 mb-10"><Icon name="lock" className="w-8 h-8" style={{color: activeTheme.color}} /> Lounge</h2>
+                                    <div className="master-card flex flex-col items-center justify-center min-h-[300px]">
+                                        {!isUnlocked ? (
+                                            <div className="w-full max-w-[280px]">
+                                                <div className="flex justify-center gap-4 mb-12">
+                                                    {[...Array(4)].map((_, i) => (
+                                                        <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${pin.length > i ? 'bg-white border-white scale-110 shadow-[0_0_15px_white]' : 'border-white/20'}`} style={{backgroundColor: pin.length > i ? activeTheme.color : 'transparent'}}></div>
+                                                    ))}
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    {[1,2,3,4,5,6,7,8,9,'C',0,'X'].map(num => (
+                                                        <button key={num} onClick={() => { if(num === 'C') setPin(""); else if(num === 'X') setPin(pin.slice(0,-1)); else if(pin.length < 4) { const n = pin + num; setPin(n); checkPin(n); } }} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 text-lg font-bold active:scale-90 hover:bg-white/10 transition-all text-white">{num}</button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                {[1,2,3,4,5,6,7,8,9,'C',0,'X'].map(num => (
-                                                    <button key={num} onClick={() => { if(num === 'C') setPin(""); else if(num === 'X') setPin(pin.slice(0,-1)); else if(pin.length < 4) { const n = pin + num; setPin(n); checkPin(n); } }} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 text-lg font-bold active:scale-90 text-white">{num}</button>
-                                                ))}
+                                        ) : (
+                                            <div className="text-center py-10 w-full animate-in">
+                                                <h3 className="text-2xl font-black italic mb-6 uppercase text-yellow-400">Acceso Élite</h3>
+                                                <p className="text-2xl font-black tracking-widest select-all text-white font-mono">EDK_ULTRA_2027</p>
+                                                <p className="text-[9px] text-white/40 mt-6 uppercase font-black italic tracking-widest">Código Maestro Autorizado</p>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-10 rounded-[3rem] bg-gradient-to-br from-slate-800 to-slate-950 border border-white/10 shadow-2xl text-center">
-                                            <h3 className="text-2xl font-black mb-6 uppercase tracking-tighter italic text-yellow-400">Zona Élite</h3>
-                                            <p className="text-2xl font-black tracking-widest select-all uppercase text-white">EDK_ULTRA_2027</p>
-                                            <p className="text-[8px] text-white/40 mt-4 uppercase font-bold tracking-widest">Código de acceso único</p>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
                             {activeTab === 'themes' && (
-                                <div className="animate-in pt-4 text-left">
-                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-10 flex items-center gap-3 text-white"><Icon name="brush" className="w-8 h-8" style={{color: activeTheme.color}} /> Personalizar</h2>
-                                    <div className="glass-card p-10 rounded-[4rem] grid grid-cols-2 gap-8 justify-items-center shadow-2xl">
+                                <div className="animate-in pt-4">
+                                    <h2 className="text-2xl font-black italic uppercase flex items-center gap-3 mb-10"><Icon name="brush" className="w-8 h-8" style={{color: activeTheme.color}} /> Temas</h2>
+                                    <div className="master-card grid grid-cols-2 gap-8 justify-items-center">
                                         {Object.entries(themes).map(([id, t]) => (
-                                            <div key={id} onClick={() => setTheme(id)} className="flex flex-col items-center gap-3">
-                                                <div className={`w-[60px] h-[60px] rounded-[22px] cursor-pointer transition-all border-4 ${theme === id ? 'border-white scale-110 shadow-2xl' : 'border-transparent opacity-50'}`} style={{ backgroundColor: t.color }}></div>
-                                                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest leading-none">{t.name}</span>
+                                            <div key={id} onClick={() => setTheme(id)} className="flex flex-col items-center gap-3 cursor-pointer group">
+                                                <div className={`w-[60px] h-[60px] rounded-[22px] transition-all border-4 ${theme === id ? 'border-white scale-110 shadow-2xl' : 'border-transparent opacity-40 group-hover:opacity-100'}`} style={{ backgroundColor: t.color }}></div>
+                                                <span className={`text-[9px] font-black uppercase tracking-widest ${theme === id ? 'text-white' : 'text-slate-500'}`}>{t.name}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -454,21 +471,21 @@
 
                         </main>
 
-                        {/* Dock Pro Dinámico */}
-                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-950/90 backdrop-blur-3xl border-t border-white/5 px-4 flex justify-around items-center z-[100] safe-bottom">
-                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'home' ? activeTheme.color : 'white'}}><Icon name="home" className="w-5 h-5"/><span className="text-[6px] font-black uppercase leading-none">Home</span></button>
-                            <button onClick={() => setActiveTab('market')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'market' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'market' ? '#eab308' : 'white'}}><Icon name="cart" className="w-5 h-5"/><span className="text-[6px] font-black uppercase leading-none">Tienda</span></button>
+                        <nav className="flex-shrink-0 absolute bottom-0 left-0 w-full h-24 bg-slate-950/90 backdrop-blur-3xl border-t border-white/5 px-2 flex justify-around items-center z-[100] safe-bottom">
+                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${activeTab === 'home' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'home' ? activeTheme.color : 'white'}}><Icon name="home" className="w-5 h-5"/><span className="text-[5px] font-black uppercase tracking-tighter">Home</span></button>
+                            <button onClick={() => setActiveTab('market')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${activeTab === 'market' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'market' ? '#eab308' : 'white'}}><Icon name="cart" className="w-5 h-5"/><span className="text-[5px] font-black uppercase tracking-tighter">Tienda</span></button>
                             
-                            <div className="relative -top-8 flex gap-3 p-2 bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 shadow-2xl">
-                                <button onClick={() => setActiveTab('scanner')} className={`w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'scanner' ? 'bg-white text-black' : 'bg-slate-800 text-white'}`}><Icon name="qr" className="w-6 h-6"/></button>
-                                <button onClick={() => setActiveTab('vip_card')} className={`w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'vip_card' ? 'bg-white text-black' : 'bg-slate-800 text-white'}`}><Icon name="id" className="w-6 h-6"/></button>
-                                <button onClick={() => setActiveTab('secret')} className={`w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'secret' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'bg-slate-800 text-white'}`}><Icon name="lock" className="w-6 h-6"/></button>
+                            <div className="relative -top-8 flex gap-2 sm:gap-3 p-2 bg-slate-900/80 backdrop-blur-2xl rounded-[1.8rem] sm:rounded-[2.5rem] border border-white/10 shadow-2xl">
+                                <button onClick={() => setActiveTab('scanner')} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'scanner' ? 'bg-white text-black shadow-xl scale-105' : 'bg-slate-800 text-white hover:bg-slate-700'}`}><Icon name="qr" className="w-5.5 h-5.5 sm:w-6 sm:h-6"/></button>
+                                <button onClick={() => setActiveTab('vip_card')} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'vip_card' ? 'bg-white text-black shadow-xl scale-105' : 'bg-slate-800 text-white hover:bg-slate-700'}`}><Icon name="id" className="w-5.5 h-5.5 sm:w-6 sm:h-6"/></button>
+                                <button onClick={() => setActiveTab('secret')} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${activeTab === 'secret' ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20 scale-105' : 'bg-slate-800 text-white hover:bg-slate-700'}`}><Icon name="lock" className="w-5.5 h-5.5 sm:w-6 sm:h-6"/></button>
                             </div>
 
-                            <button onClick={() => setActiveTab('themes')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'themes' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'themes' ? activeTheme.color : 'white'}}><Icon name="brush" className="w-5 h-5"/><span className="text-[6px] font-black uppercase leading-none">Temas</span></button>
-                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'youtube' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'youtube' ? '#ef4444' : 'white'}}><YouTubeIcon className="w-5 h-5"/><span className="text-[6px] font-black uppercase leading-none">Social</span></button>
+                            <button onClick={() => setActiveTab('themes')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${activeTab === 'themes' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'themes' ? activeTheme.color : 'white'}}><Icon name="brush" className="w-5 h-5"/><span className="text-[5px] font-black uppercase tracking-tighter">Temas</span></button>
+                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${activeTab === 'youtube' ? 'font-bold' : 'opacity-40'}`} style={{color: activeTab === 'youtube' ? '#ef4444' : 'white'}}><YouTubeIcon className="w-5 h-5"/><span className="text-[5px] font-black uppercase tracking-tighter">Social</span></button>
                         </nav>
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full sm:block hidden"></div>
+
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/10 rounded-full sm:block hidden"></div>
                     </div>
                 </div>
             );
