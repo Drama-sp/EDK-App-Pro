@@ -43,7 +43,7 @@
             from { opacity: 0; transform: translateY(20px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
-        .animate-in { animation: slideUp 0.5s ease-out forwards; }
+        .animate-in { animation: slideUp 0.4s ease-out forwards; }
 
         @keyframes wave {
             0%, 100% { height: 4px; }
@@ -79,21 +79,23 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Inicializar Firebase con configuración global
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edk-app-pro-id';
+        try {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'edk-app-pro-id';
 
-        // Exponer utilidades para el componente React
-        window.EDK_DB = { 
-            auth, db, appId, 
-            collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, 
-            signInAnonymously, signInWithCustomToken, onAuthStateChanged 
-        };
+            window.EDK_DB = { 
+                auth, db, appId, 
+                collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, 
+                signInAnonymously, signInWithCustomToken, onAuthStateChanged 
+            };
+        } catch (e) {
+            console.error("Error inicializando Firebase:", e);
+        }
     </script>
 
     <script type="text/babel">
@@ -116,7 +118,8 @@
                 reply: <React.Fragment><polyline points="9 17 4 12 9 7" /><path d="M20 18v-2a4 4 0 0 0-4-4H4" /></React.Fragment>,
                 checkCircle: <React.Fragment><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></React.Fragment>,
                 chevronRight: <polyline points="9 18 15 12 9 6" />,
-                external: <React.Fragment><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 22 3 22 10" /><line x1="10" y1="14" x2="22" y2="2" /></React.Fragment>
+                external: <React.Fragment><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 22 3 22 10" /><line x1="10" y1="14" x2="22" y2="2" /></React.Fragment>,
+                download: <React.Fragment><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></React.Fragment>
             };
             return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name] || <circle cx="12" cy="12" r="10" />}</svg>;
         };
@@ -131,13 +134,14 @@
             const [comments, setComments] = useState([]);
             const [newComment, setNewComment] = useState("");
             const [replyingTo, setReplyingTo] = useState(null);
-            const [expandedRank, setExpandedRank] = useState(null);
+            const [isConnecting, setIsConnecting] = useState(true);
+            const [connError, setConnError] = useState(null);
             
             const audioRef = useRef(null);
             const qrRef = useRef(null);
             const isInitialLoad = useRef(true);
 
-            // 1. Inicializar Auth y Perfil Local
+            // 1. Lógica de Autenticación Mejorada
             useEffect(() => {
                 const savedName = localStorage.getItem('edk_username');
                 if (savedName) {
@@ -145,56 +149,63 @@
                     setHasProfile(true);
                 }
 
-                const initFirebase = setInterval(async () => {
-                    if (window.EDK_DB) {
-                        clearInterval(initFirebase);
-                        const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.EDK_DB;
-                        
-                        try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
+                const initAuth = async () => {
+                    const checkFB = setInterval(async () => {
+                        if (window.EDK_DB) {
+                            clearInterval(checkFB);
+                            const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.EDK_DB;
+                            
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await signInWithCustomToken(auth, __initial_auth_token);
+                                } else {
+                                    await signInAnonymously(auth);
+                                }
+                                onAuthStateChanged(auth, (u) => {
+                                    setUser(u);
+                                    if(u) {
+                                        setIsConnecting(false);
+                                        setConnError(null);
+                                    }
+                                });
+                            } catch (e) { 
+                                console.error("Error Auth:", e);
+                                setConnError("Fallo de conexión");
                             }
-                            onAuthStateChanged(auth, (u) => setUser(u));
-                        } catch (e) {
-                            console.error("Fallo de autenticación Firebase:", e);
                         }
-                    }
-                }, 100);
-                
-                return () => clearInterval(initFirebase);
+                    }, 200);
+                };
+                initAuth();
             }, []);
 
-            // 2. Escuchar Comentarios (Gated by user)
+            // 2. Escuchar Comentarios (Gated by user and connection)
             useEffect(() => {
                 if (!user || !window.EDK_DB) return;
                 const { db, appId, collection, onSnapshot } = window.EDK_DB;
                 
-                // Path estricto: /artifacts/{appId}/public/data/comments
                 const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
                 
                 const unsubscribe = onSnapshot(commentsRef, (snapshot) => {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // Ordenar en memoria JS
                     const sorted = data.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
                     
-                    // Notificación si hay mensajes nuevos (no carga inicial)
                     if (!isInitialLoad.current && sorted.length > comments.length) {
                         const latest = sorted[0];
                         if (latest.user !== userName && Notification.permission === "granted") {
                             new Notification("EDK Chat", { body: `${latest.user}: ${latest.text}`, icon: "icon.png" });
                         }
                     }
-                    
                     setComments(sorted);
                     isInitialLoad.current = false;
                 }, (err) => {
-                    console.error("Error Firestore Snapshot:", err.message);
+                    console.error("Error Snapshot:", err.message);
+                    if(err.message.includes("permission")) {
+                        setConnError("Sin permisos de nube");
+                    }
                 });
 
                 return () => unsubscribe();
-            }, [user]);
+            }, [user, userName]);
 
             useEffect(() => {
                 if (showQR && qrRef.current) {
@@ -234,8 +245,8 @@
                         });
                     }
                 } catch (err) {
-                    console.error("Error de envío:", err);
-                    setNewComment(textCache); // Restaurar si falla
+                    console.error("Error al enviar:", err);
+                    setNewComment(textCache);
                 }
             };
 
@@ -252,23 +263,27 @@
 
                     <div className="relative w-full max-w-[410px] h-[840px] bg-slate-900 rounded-[3.5rem] shadow-2xl border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
+                        {/* Barra Superior */}
                         <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[11px] font-bold text-slate-400 italic tracking-widest uppercase">
-                            <span>EDK LIVE v5.2</span>
+                            <span>EDK LIVE v5.5</span>
                             <div className="flex gap-1.5 items-center">
                                 <div className="w-4 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                             </div>
                         </div>
 
+                        {/* Cabecera Principal */}
                         <header className="px-6 py-6 flex justify-between items-center bg-slate-900/80 backdrop-blur-lg border-b border-white/5 sticky top-0 z-40">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20 shadow-lg overflow-hidden relative">
+                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
                                     <img src="icon.png" className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
-                                    <span className="text-[10px] font-black absolute">EDK</span>
+                                    <span className="text-[10px] font-black absolute uppercase italic">EDK</span>
                                 </div>
                                 <div>
                                     <h1 className="text-sm font-black tracking-tighter italic uppercase leading-none">EDK App Pro</h1>
-                                    <p className="text-[9px] text-green-400 font-bold uppercase mt-1 tracking-tighter">{user ? 'Nube Sincronizada ✅' : 'Conectando...'}</p>
+                                    <p className={`text-[9px] font-bold uppercase mt-1 ${connError ? 'text-red-500' : 'text-green-400'}`}>
+                                        {connError ? `⚠️ ${connError}` : isConnecting ? 'Sincronizando...' : 'Conectado ✅'}
+                                    </p>
                                 </div>
                             </div>
                             <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
@@ -280,30 +295,30 @@
                             {showQR ? (
                                 <div className="animate-in space-y-6 pt-10 text-center text-white">
                                     <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-xl">
-                                        <h2 className="text-xl font-black italic mb-6 uppercase">Compartir EDK</h2>
+                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter">Invitación Global</h2>
                                         <div id="qrcode" ref={qrRef} className="bg-white p-2 rounded-2xl inline-block shadow-2xl"></div>
-                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono uppercase italic">{window.location.href}</p>
+                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono">{window.location.href}</p>
                                     </div>
-                                    <button onClick={() => setShowQR(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Volver</button>
+                                    <button onClick={() => setShowQR(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Regresar</button>
                                 </div>
                             ) : (
                                 <>
                                     {activeTab === 'home' && (
                                         <div className="space-y-6 animate-in">
                                             <div className="p-7 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 shadow-2xl relative overflow-hidden group">
-                                                <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none mb-2">EDKSTUDIOS</h2>
-                                                <p className="text-blue-100 text-[11px] mb-8 font-medium">Únete a la comunidad líder en Roblox.</p>
+                                                <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none">EDKSTUDIOS</h2>
+                                                <p className="text-blue-100 text-[11px] mb-8 font-medium">Liderazgo y comunidad en Roblox.</p>
                                                 <a href="https://www.roblox.com/share/g/89024247" target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl active:scale-95 transition-all">Entrar al Grupo <Icon name="external" className="w-3 h-3" /></a>
                                                 <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
                                             </div>
 
                                             <div className="bg-slate-800/40 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
-                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest"><Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía Oficial</h3>
+                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest"><Icon name="shield" className="w-3.5 h-3.5" /> Estructura EDK</h3>
                                                 <div className="space-y-3">
                                                     <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-red-500"><Icon name="shieldCheck" className="w-5 h-5" /></div>
-                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold tracking-widest">@27kDomin</p></div>
+                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">@27kDomin</p></div>
                                                         </div>
                                                         <Icon name="checkCircle" className="w-4 h-4 text-blue-500" />
                                                     </div>
@@ -316,15 +331,15 @@
                                         <div className="animate-in space-y-6 text-center pt-4">
                                             <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
                                                 <Icon name="youtube" className="w-12 h-12 text-white mx-auto mb-4" />
-                                                <h2 className="text-xl font-black italic uppercase">@3ldramaking</h2>
+                                                <h2 className="text-xl font-black italic uppercase leading-none tracking-tighter">@3ldramaking</h2>
                                                 <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest">683 SUBS</span>
                                             </div>
                                             <div className="p-1.5 rounded-[2.5rem] bg-gradient-to-r from-red-500 to-red-800 shadow-2xl">
                                                 <div className="w-full p-6 bg-slate-900/60 rounded-[2rem] flex items-center justify-between">
                                                     <button onClick={toggleMusic} className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl active:scale-90 ${isPlaying ? 'bg-white text-red-600' : 'bg-red-600 text-white'}`}><Icon name={isPlaying ? "pause" : "play"} className="w-6 h-6" /></button>
                                                     <div className="text-right flex-1 px-4">
-                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">BUILD TOGETHER</p>
-                                                        <p className="text-xs font-bold text-white uppercase tracking-tighter">Tema Oficial</p>
+                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">THEME AUDIO</p>
+                                                        <p className="text-xs font-bold text-white uppercase italic tracking-tighter">Build Together</p>
                                                         {isPlaying && <div className="flex justify-end gap-1 items-end mt-2 h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
                                                     </div>
                                                 </div>
@@ -339,22 +354,22 @@
                                                     <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mb-6 border border-blue-500/30">
                                                         <Icon name="user" className="w-10 h-10 text-blue-500" />
                                                     </div>
-                                                    <h2 className="text-xl font-black uppercase italic mb-2 tracking-tighter">Crea tu Perfil</h2>
-                                                    <p className="text-xs text-slate-400 mb-8 max-w-[220px]">Tu nombre y emojis serán permanentes en la comunidad EDK.</p>
+                                                    <h2 className="text-xl font-black uppercase italic mb-2 tracking-tighter">Acceso Chat</h2>
+                                                    <p className="text-xs text-slate-400 mb-8 max-w-[220px]">Escribe tu nombre y usa emojis para identificarte en el chat.</p>
                                                     
                                                     <div className="w-full space-y-4 max-w-[280px]">
                                                         <input 
                                                             type="text" 
-                                                            placeholder="Nombre + Emojis 🚀" 
+                                                            placeholder="Tu apodo 💬" 
                                                             value={userName}
                                                             onChange={(e) => setUserName(e.target.value)}
                                                             className="w-full glass-input rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 focus:ring-blue-500 text-white font-bold"
                                                         />
                                                         <button 
                                                             onClick={saveProfile}
-                                                            className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all"
+                                                            className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase text-[11px] shadow-lg active:scale-95 transition-all"
                                                         >
-                                                            Unirse al Chat
+                                                            Ingresar a la Nube
                                                         </button>
                                                     </div>
                                                 </div>
@@ -363,7 +378,7 @@
                                                     <div className="flex items-center justify-between mb-6 px-2">
                                                         <div className="flex items-center gap-2">
                                                             <Icon name="message" className="w-5 h-5 text-blue-500" />
-                                                            <h2 className="text-xl font-black italic uppercase tracking-tighter">Comunidad</h2>
+                                                            <h2 className="text-xl font-black italic uppercase tracking-tighter">Chat Global</h2>
                                                         </div>
                                                         <button onClick={() => {setHasProfile(false); localStorage.removeItem('edk_username')}} className="text-[8px] text-slate-500 font-bold uppercase border border-white/5 px-2 py-1 rounded-lg">Editar</button>
                                                     </div>
@@ -380,8 +395,8 @@
                                                                 type="text" 
                                                                 value={newComment} 
                                                                 onChange={(e) => setNewComment(e.target.value)}
-                                                                placeholder="Escribe algo permanente..." 
-                                                                className="flex-1 bg-transparent border-none text-xs outline-none font-medium"
+                                                                placeholder="Mensaje permanente..." 
+                                                                className="flex-1 bg-transparent border-none text-xs outline-none font-medium text-white"
                                                                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                                                             />
                                                             <button onClick={handleSend} className="bg-blue-600 p-3 rounded-xl shadow-lg active:scale-90"><Icon name="send" className="w-4 h-4 text-white" /></button>
@@ -389,10 +404,10 @@
                                                     </div>
 
                                                     <div className="space-y-4">
-                                                        {comments.length === 0 && <p className="text-center py-10 text-[9px] text-slate-600 uppercase font-black tracking-widest italic">Iniciando base de datos...</p>}
+                                                        {isConnecting && comments.length === 0 && <p className="text-center py-10 text-[9px] text-slate-600 uppercase font-black tracking-widest italic animate-pulse">Conectando a la red EDK...</p>}
                                                         {comments.map(comment => (
                                                             <div key={comment.id} className="animate-in">
-                                                                <div className="comment-bubble p-4 rounded-[1.8rem] space-y-2 shadow-inner">
+                                                                <div className="comment-bubble p-4 rounded-[1.8rem] space-y-2 shadow-inner border border-white/5">
                                                                     <div className="flex justify-between items-center">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className={`text-[10px] font-black uppercase ${comment.isOwner ? 'text-blue-400' : 'text-slate-400'}`}>{comment.user}</span>
@@ -406,7 +421,7 @@
                                                                 </div>
                                                                 {comment.replies && comment.replies.map((reply, rid) => (
                                                                     <div key={rid} className="ml-8 mt-2 comment-bubble p-3 rounded-[1.4rem] bg-slate-800/20 border-l-2 border-blue-600/40 shadow-sm">
-                                                                        <span className="text-[9px] font-black text-slate-500 uppercase">{reply.user}</span>
+                                                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">{reply.user}</span>
                                                                         <p className="text-[11px] text-slate-300 font-medium leading-tight">{reply.text}</p>
                                                                     </div>
                                                                 ))}
@@ -451,7 +466,7 @@
                                 <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Inicio</span>
                             </button>
                             <button onClick={() => {setActiveTab('youtube'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' && !showQR ? 'text-red-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="youtube" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">YouTube</span>
+                                <Icon name="youtube" className="w-6 h-6" /><span className="text-[9px] font-black uppercase italic tracking-tighter leading-none tracking-widest">Youtube</span>
                             </button>
                             <div className="relative -top-6">
                                 <button onClick={() => {setActiveTab('community'); setShowQR(false)}} className={`w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_20px_rgba(37,99,235,0.4)] border-4 border-slate-900 transform active:scale-90 transition-all ${activeTab === 'community' ? 'bg-blue-600' : 'bg-slate-800'}`}>
@@ -473,4 +488,5 @@
     </script>
 </body>
 </html>
+
 
