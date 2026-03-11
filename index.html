@@ -59,7 +59,7 @@
 
         #qrcode img {
             margin: 0 auto;
-            border: 6px solid white;
+            border: 8px solid white;
             border-radius: 12px;
         }
 
@@ -92,14 +92,15 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Inicialización siguiendo las reglas mandatorias
+        // Inicialización inmediata
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'edk-app-pro-default';
 
-        window.EDK_CORE = { 
+        // Exponemos las funciones necesarias al objeto global window para que React las use
+        window.EDK_FIREBASE = { 
             auth, db, appId, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, 
             signInAnonymously, signInWithCustomToken, onAuthStateChanged 
         };
@@ -147,7 +148,7 @@
             const qrRef = useRef(null);
             const isInitialLoad = useRef(true);
 
-            // 1. Autenticación Robusta (Sigue Regla 3)
+            // 1. Inicialización de Autenticación (Prioritaria y sin esperas)
             useEffect(() => {
                 const savedName = localStorage.getItem('edk_username');
                 if (savedName) {
@@ -155,53 +156,59 @@
                     setHasProfile(true);
                 }
 
-                const setupAuth = async () => {
-                    const checkEDK = setInterval(async () => {
-                        if (window.EDK_CORE) {
-                            clearInterval(checkEDK);
-                            const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.EDK_CORE;
+                const initAuth = async () => {
+                    // Esperamos a que el objeto Firebase esté disponible en window
+                    const checkFirebase = setInterval(async () => {
+                        if (window.EDK_FIREBASE) {
+                            clearInterval(checkFirebase);
+                            const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.EDK_FIREBASE;
+                            
                             try {
+                                // REGLA 3: Llamar a signIn primero
                                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                                     await signInWithCustomToken(auth, __initial_auth_token);
                                 } else {
                                     await signInAnonymously(auth);
                                 }
+                                // Una vez firmado, escuchamos el cambio de estado
                                 onAuthStateChanged(auth, (u) => {
-                                    setUser(u);
-                                    if(u) {
+                                    if (u) {
+                                        setUser(u);
                                         setIsConnecting(false);
                                         setConnError(null);
                                     }
                                 });
-                            } catch (e) { 
-                                console.error("Auth Fail:", e);
-                                setConnError("Error de Conexión");
+                            } catch (e) {
+                                console.error("Error Auth:", e);
+                                setConnError("Fallo de autenticación");
+                                setIsConnecting(false);
                             }
                         }
-                    }, 100);
+                    }, 50); // Chequeo rápido cada 50ms
                 };
-                setupAuth();
+                initAuth();
             }, []);
 
-            // 2. Escuchar Comentarios (Gated by user y Regla 1)
+            // 2. Suscripción a Firestore (Solo si el usuario está autenticado)
             useEffect(() => {
-                if (!user || !window.EDK_CORE) return;
-                const { db, appId, collection, onSnapshot } = window.EDK_CORE;
+                if (!user || !window.EDK_FIREBASE) return;
+                const { db, appId, collection, onSnapshot } = window.EDK_FIREBASE;
                 
-                // Path estricto según Regla 1
+                // REGLA 1: Path estricto
                 const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
                 
+                // Escucha en tiempo real
                 const unsubscribe = onSnapshot(commentsRef, (snapshot) => {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // Ordenar en JS según Regla 2
+                    // REGLA 2: Ordenar en memoria local para evitar necesidad de índices complejos
                     const sorted = data.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
                     
                     setComments(sorted);
                     setIsConnecting(false);
                     isInitialLoad.current = false;
                 }, (err) => {
-                    console.error("Firestore Permission Error:", err.message);
-                    setConnError("Error de Permisos");
+                    console.error("Error de permisos Firestore:", err.message);
+                    setConnError("Acceso denegado");
                 });
 
                 return () => unsubscribe();
@@ -221,8 +228,8 @@
             };
 
             const handleSend = async () => {
-                if (!newComment.trim() || !user || !window.EDK_CORE || !hasProfile) return;
-                const { db, appId, collection, addDoc, doc, updateDoc, arrayUnion, Timestamp } = window.EDK_CORE;
+                if (!newComment.trim() || !user || !window.EDK_FIREBASE || !hasProfile) return;
+                const { db, appId, collection, addDoc, doc, updateDoc, arrayUnion, Timestamp } = window.EDK_FIREBASE;
                 
                 const myName = userName || `User_${user.uid.slice(0, 4)}`;
                 const textCache = newComment;
@@ -246,7 +253,7 @@
                         });
                     }
                 } catch (err) {
-                    console.error("Send Error:", err);
+                    console.error("Error al enviar:", err);
                     setNewComment(textCache);
                 }
             };
@@ -264,14 +271,16 @@
 
                     <div className="relative w-full max-w-[410px] h-[840px] bg-slate-900 rounded-[3.5rem] shadow-2xl border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
+                        {/* Barra Superior */}
                         <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[11px] font-bold text-slate-400 italic tracking-widest uppercase leading-none">
-                            <span>EDK ULTRA v6.2</span>
+                            <span>EDK ULTRA v6.5</span>
                             <div className="flex gap-1.5 items-center">
                                 <div className="w-4 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                             </div>
                         </div>
 
+                        {/* Cabecera Principal */}
                         <header className="px-6 py-6 flex justify-between items-center bg-slate-900/80 backdrop-blur-lg border-b border-white/5 sticky top-0 z-40">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
@@ -281,11 +290,11 @@
                                 <div>
                                     <h1 className="text-sm font-black tracking-tighter italic uppercase leading-none mb-1">EDK App Pro</h1>
                                     <p className={`text-[9px] font-bold uppercase tracking-tighter ${connError ? 'text-red-500' : 'text-green-400'}`}>
-                                        {connError ? `⚠️ ${connError}` : isConnecting ? <span className="loading-dots text-slate-400">Sincronizando</span> : 'En Línea ✅'}
+                                        {connError ? `⚠️ ${connError}` : isConnecting ? <span className="loading-dots text-slate-400 italic">Conectando</span> : 'Red Activa ✅'}
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
+                            <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600 border-white' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
                                 <Icon name="qr" className="w-4 h-4" />
                             </button>
                         </header>
@@ -294,7 +303,7 @@
                             {showQR ? (
                                 <div className="animate-in space-y-6 pt-10 text-center text-white">
                                     <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10 shadow-xl">
-                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter">Comparte EDK</h2>
+                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter">Comparte tu App</h2>
                                         <div id="qrcode" ref={qrRef} className="bg-white p-2 rounded-2xl inline-block shadow-2xl"></div>
                                         <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono">{window.location.href}</p>
                                     </div>
@@ -306,18 +315,18 @@
                                         <div className="space-y-6 animate-in">
                                             <div className="p-7 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 shadow-2xl relative overflow-hidden group">
                                                 <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none mb-2">EDKSTUDIOS</h2>
-                                                <p className="text-blue-100 text-[11px] mb-8 font-medium italic">Comunidad oficial liderada por ElDramaKing.</p>
+                                                <p className="text-blue-100 text-[11px] mb-8 font-medium italic">La comunidad definitiva de Roblox.</p>
                                                 <a href="https://www.roblox.com/share/g/89024247" target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl active:scale-95 transition-all">Entrar al Grupo <Icon name="external" className="w-3 h-3" /></a>
                                                 <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
                                             </div>
 
                                             <div className="bg-slate-800/40 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
-                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest"><Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía Oficial</h3>
+                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest leading-none"><Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía HD</h3>
                                                 <div className="space-y-3">
-                                                    <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5 group hover:border-blue-500/30 transition-colors">
+                                                    <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-red-500 shadow-inner"><Icon name="shieldCheck" className="w-5 h-5" /></div>
-                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold tracking-widest leading-none">@27kDomin</p></div>
+                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">@27kDomin</p></div>
                                                         </div>
                                                         <Icon name="checkCircle" className="w-4 h-4 text-blue-500/40" />
                                                     </div>
@@ -331,14 +340,14 @@
                                             <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
                                                 <Icon name="youtube" className="w-12 h-12 text-white mx-auto mb-4" />
                                                 <h2 className="text-xl font-black italic uppercase leading-none tracking-tighter">@3ldramaking</h2>
-                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest">683 SUBS</span>
+                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest leading-none">683 SUBS</span>
                                             </div>
                                             <div className="p-1.5 rounded-[2.5rem] bg-gradient-to-r from-red-500 to-red-800 shadow-2xl">
                                                 <div className="w-full p-6 bg-slate-900/60 rounded-[2rem] flex items-center justify-between">
                                                     <button onClick={toggleMusic} className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl active:scale-90 ${isPlaying ? 'bg-white text-red-600' : 'bg-red-600 text-white'}`}><Icon name={isPlaying ? "pause" : "play"} className="w-6 h-6" /></button>
                                                     <div className="text-right flex-1 px-4">
-                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">EDK MUSIC</p>
-                                                        <p className="text-xs font-bold text-white uppercase italic tracking-tighter">Build Together</p>
+                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter italic">Audio EDK</p>
+                                                        <p className="text-xs font-bold text-white uppercase leading-none tracking-tighter">Build Together</p>
                                                         {isPlaying && <div className="flex justify-end gap-1 items-end mt-2 h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
                                                     </div>
                                                 </div>
@@ -353,13 +362,13 @@
                                                     <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mb-6 border border-blue-500/30">
                                                         <Icon name="user" className="w-10 h-10 text-blue-500" />
                                                     </div>
-                                                    <h2 className="text-xl font-black uppercase italic mb-2 tracking-tighter">Acceso Chat</h2>
-                                                    <p className="text-xs text-slate-400 mb-8 max-w-[220px]">Escribe tu apodo y usa emojis para identificarte en el servidor.</p>
+                                                    <h2 className="text-xl font-black uppercase italic mb-2 tracking-tighter">Identidad EDK</h2>
+                                                    <p className="text-xs text-slate-400 mb-8 max-w-[220px]">Define tu nombre y emojis para chatear en la comunidad.</p>
                                                     
                                                     <div className="w-full space-y-4 max-w-[280px]">
                                                         <input 
                                                             type="text" 
-                                                            placeholder="Tu nombre 💬" 
+                                                            placeholder="Tu nombre 💎" 
                                                             value={userName}
                                                             onChange={(e) => setUserName(e.target.value)}
                                                             className="w-full glass-input rounded-2xl p-4 text-center text-sm outline-none focus:ring-2 focus:ring-blue-500 text-white font-bold"
@@ -368,7 +377,7 @@
                                                             onClick={saveProfile}
                                                             className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase text-[11px] shadow-lg active:scale-95 transition-all"
                                                         >
-                                                            Ingresar al Servidor
+                                                            Acceder al Chat
                                                         </button>
                                                     </div>
                                                 </div>
@@ -377,16 +386,16 @@
                                                     <div className="flex items-center justify-between mb-6 px-2">
                                                         <div className="flex items-center gap-2">
                                                             <Icon name="message" className="w-5 h-5 text-blue-500" />
-                                                            <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none">Chat Global</h2>
+                                                            <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none">Comunidad</h2>
                                                         </div>
-                                                        <button onClick={() => {setHasProfile(false); localStorage.removeItem('edk_username')}} className="text-[8px] text-slate-500 font-bold uppercase border border-white/5 px-3 py-1 rounded-lg hover:text-white transition-colors">Editar</button>
+                                                        <button onClick={() => {setHasProfile(false); localStorage.removeItem('edk_username')}} className="text-[8px] text-slate-500 font-bold uppercase border border-white/5 px-3 py-1 rounded-lg hover:text-white transition-colors">Perfil</button>
                                                     </div>
 
                                                     <div className="mb-6 glass-input p-4 rounded-[2.5rem] sticky top-0 z-10 shadow-2xl border-white/10">
                                                         {replyingTo && (
                                                             <div className="flex justify-between items-center bg-blue-600/20 p-2 rounded-xl mb-2 text-[10px] font-bold">
-                                                                <span className="px-2 truncate opacity-70 italic uppercase">Respondiendo mensaje...</span>
-                                                                <button onClick={() => setReplyingTo(null)} className="text-red-400 px-2 uppercase text-[8px] font-black">Cancelar</button>
+                                                                <span className="px-2 truncate opacity-70 italic uppercase">Respondiendo...</span>
+                                                                <button onClick={() => setReplyingTo(null)} className="text-red-400 px-2 uppercase text-[8px] font-black">X</button>
                                                             </div>
                                                         )}
                                                         <div className="flex gap-3">
@@ -394,7 +403,7 @@
                                                                 type="text" 
                                                                 value={newComment} 
                                                                 onChange={(e) => setNewComment(e.target.value)}
-                                                                placeholder="Escribe algo permanente..." 
+                                                                placeholder="Di algo al grupo..." 
                                                                 className="flex-1 bg-transparent border-none text-xs outline-none font-medium text-white placeholder-slate-500"
                                                                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                                                             />
@@ -404,7 +413,13 @@
 
                                                     <div className="space-y-4 pb-10">
                                                         {(isConnecting || comments.length === 0) && !connError && (
-                                                            <p className="text-center py-10 text-[9px] text-slate-600 uppercase font-black tracking-widest italic animate-pulse">Despertando red...</p>
+                                                            <p className="text-center py-10 text-[9px] text-slate-600 uppercase font-black tracking-widest italic animate-pulse">Despertando nube...</p>
+                                                        )}
+                                                        {connError && (
+                                                            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl text-center">
+                                                                <p className="text-[10px] font-black uppercase text-red-500 mb-2">Error de conexión</p>
+                                                                <button onClick={() => window.location.reload()} className="text-[8px] font-bold underline text-white">Reintentar conexión ahora</button>
+                                                            </div>
                                                         )}
                                                         {comments.map(comment => (
                                                             <div key={comment.id} className="animate-in">
@@ -452,7 +467,7 @@
                                                 <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">MUNEEB_ALT</h2>
                                                 <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10 italic uppercase leading-none">@ElDramaKing_ALT</p>
                                                 <div className="bg-slate-950/60 p-6 rounded-[2.5rem] border border-white/5 text-left flex justify-between items-center group shadow-inner transition-colors hover:bg-slate-900">
-                                                    <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none">Estatus Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter leading-none">Founder & Owner</p></div>
+                                                    <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none uppercase">Estatus Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter leading-none uppercase">Founder & Owner</p></div>
                                                     <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shadow-lg"><Icon name="checkCircle" className="w-6 h-6 text-green-500" /></div>
                                                 </div>
                                             </div>
@@ -464,10 +479,10 @@
 
                         <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-4 flex justify-around items-center z-[100]">
                             <button onClick={() => {setActiveTab('home'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'home' && !showQR ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Inicio</span>
+                                <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase">Inicio</span>
                             </button>
                             <button onClick={() => {setActiveTab('youtube'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' && !showQR ? 'text-red-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="youtube" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter leading-none tracking-widest">Youtube</span>
+                                <Icon name="youtube" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter leading-none tracking-widest uppercase">Youtube</span>
                             </button>
                             <div className="relative -top-6">
                                 <button onClick={() => {setActiveTab('community'); setShowQR(false)}} className={`w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_20px_rgba(37,99,235,0.4)] border-4 border-slate-900 transform active:scale-90 transition-all ${activeTab === 'community' ? 'bg-blue-600' : 'bg-slate-800'}`}>
@@ -475,7 +490,7 @@
                                 </button>
                             </div>
                             <button onClick={() => {setActiveTab('owner'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'owner' && !showQR ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter leading-none">Owner</span>
+                                <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter leading-none uppercase">Owner</span>
                             </button>
                         </nav>
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
