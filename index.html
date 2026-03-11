@@ -2,24 +2,20 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EDK App Pro - Comunidad EDKSTUDIOS</title>
     
-    <!-- Configuración PWA -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Tailwind CSS (Carga Rápida) -->
+    <!-- Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- QR Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
@@ -40,40 +36,20 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
-        @keyframes slideUp { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        .animate-in { animation: slideUp 0.3s ease-out forwards; }
+        .animate-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        @keyframes wave {
-            0%, 100% { height: 4px; }
-            50% { height: 16px; }
-        }
-        .music-bar {
-            width: 3px;
-            background-color: #3b82f6;
-            border-radius: 1px;
-            animation: wave 1s ease-in-out infinite;
-        }
-        .bar-2 { animation-delay: 0.2s; } 
-        .bar-3 { animation-delay: 0.4s; }
+        @keyframes wave { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+        .music-bar { width: 3px; background-color: #3b82f6; border-radius: 1px; animation: wave 1s ease-in-out infinite; }
+        .bar-2 { animation-delay: 0.2s; } .bar-3 { animation-delay: 0.4s; }
 
-        .profile-glow { box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); }
         .glass-card { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        .profile-glow { box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); }
         
-        #qrcode img { margin: 0 auto; border: 6px solid white; border-radius: 12px; }
+        .team-card { background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8)); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .premium-glow { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3)); }
 
-        /* Estilo específico para los inputs para que el texto sea negro y fondo blanco */
-        .edk-input {
-            background-color: white !important;
-            color: black !important;
-            font-weight: 600;
-        }
-        .edk-input::placeholder {
-            color: #64748b !important;
-            font-weight: 400;
-        }
+        #qrcode img { margin: 0 auto; border: 6px solid white; border-radius: 12px; }
     </style>
 </head>
 <body>
@@ -82,44 +58,51 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // --- ICONOS INTEGRADOS (SVG) ---
+
+        const VerifiedBadge = ({ className = "w-4 h-4" }) => (
+            <svg viewBox="0 0 100 100" className={className}>
+                <rect x="15" y="15" width="70" height="70" rx="10" fill="#00A2FF" transform="rotate(-10 50 50)" />
+                <path d="M30 52 L45 67 L72 35" fill="none" stroke="white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        );
+
+        const PremiumIcon = ({ className = "w-6 h-6" }) => (
+            <svg viewBox="0 0 32 32" fill="currentColor" className={`${className} premium-glow`}>
+                <path d="M7.4 2L2 24.6L24.6 30L30 7.4L7.4 2ZM13.8 21.8L11.5 12.3L20.5 10.2L22.8 19.7L13.8 21.8Z" />
+            </svg>
+        );
+
+        const YouTubeIcon = ({ className = "w-6 h-6" }) => (
+            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+        );
+
         const Icon = ({ name, className = "w-6 h-6" }) => {
             const icons = {
-                crown: <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />,
+                home: <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
                 shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />,
-                shieldCheck: <React.Fragment><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" /><path d="m9 12 2 2 4-4" /></React.Fragment>,
                 user: <React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></React.Fragment>,
                 users: <React.Fragment><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></React.Fragment>,
-                home: <React.Fragment><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></React.Fragment>,
-                msg: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
-                yt: <React.Fragment><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2C1 8.14 1 12 1 12s0 3.86.46 5.58a2.78 2.78 0 0 0 1.94 2c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2C23 15.86 23 12 23 12s0-3.86-.46-5.58z" /><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" /></React.Fragment>,
-                play: <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />,
-                pause: <React.Fragment><rect x="6" y="4" width="4" height="16" fill="currentColor" /><rect x="14" y="4" width="4" height="16" fill="currentColor" /></React.Fragment>,
-                qr: <React.Fragment><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="3" height="3" /><rect x="18" y="18" width="3" height="3" /></React.Fragment>,
-                send: <React.Fragment><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></React.Fragment>,
-                check: <polyline points="22 4 12 14 9 11" />,
-                dl: <React.Fragment><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></React.Fragment>
+                qr: <path d="M3 3h7v7H3zm11 0h7v7h-7zm-11 11h7v7H3zm14 4h3m-3 3h3" />,
+                external: <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />,
+                discord: <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" fill="currentColor"/>
             };
             return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name] || <circle cx="12" cy="12" r="10" />}</svg>;
         };
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('home');
-            const [isPlaying, setIsPlaying] = useState(false);
             const [showQR, setShowQR] = useState(false);
-            const [userName, setUserName] = useState("");
-            const [hasProfile, setHasProfile] = useState(false);
-            const [comments, setComments] = useState([]);
-            const [newComment, setNewComment] = useState("");
-            
-            const audioRef = useRef(null);
             const qrRef = useRef(null);
 
-            useEffect(() => {
-                const savedName = localStorage.getItem('edk_username');
-                const savedComments = localStorage.getItem('edk_messages');
-                if (savedName) { setUserName(savedName); setHasProfile(true); }
-                if (savedComments) { setComments(JSON.parse(savedComments)); }
-            }, []);
+            const staffList = [
+                { role: "CEO", names: "Muneeb_ALT", verified: true, color: "text-blue-400" },
+                { role: "FOUNDER & OWNER", names: "Muneeb_ALT & ElDramaKing_YBE", verified: true, color: "text-yellow-400" },
+                { role: "ADMIN", names: "Khronix", verified: false, color: "text-red-500" },
+                { role: "COLLABS", names: "Quataun by @haz3mn", verified: false, color: "text-purple-400" }
+            ];
 
             useEffect(() => {
                 if (showQR && qrRef.current) {
@@ -128,42 +111,12 @@
                 }
             }, [showQR]);
 
-            const saveProfile = () => {
-                if (userName.trim().length < 2) return;
-                localStorage.setItem('edk_username', userName);
-                setHasProfile(true);
-            };
-
-            const handleSend = () => {
-                if (!newComment.trim()) return;
-                const msg = {
-                    id: Date.now(),
-                    user: userName,
-                    text: newComment,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    isOwner: userName.toLowerCase().includes("muneeb") || userName.toLowerCase().includes("king")
-                };
-                const updatedComments = [msg, ...comments];
-                setComments(updatedComments);
-                localStorage.setItem('edk_messages', JSON.stringify(updatedComments));
-                setNewComment("");
-            };
-
-            const toggleMusic = () => {
-                const audio = audioRef.current;
-                if (!audio) return;
-                if (isPlaying) { audio.pause(); setIsPlaying(false); } 
-                else { audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false)); }
-            };
-
             return (
                 <div className="flex justify-center items-center h-screen w-full bg-slate-950 p-0 sm:p-4 text-white">
-                    <audio ref={audioRef} src="musica.mp3" onEnded={() => setIsPlaying(false)} preload="auto" />
-
                     <div className="relative w-full max-w-[410px] h-full sm:h-[840px] bg-slate-900 rounded-none sm:rounded-[3.5rem] shadow-2xl border-x-0 sm:border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
                         <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[10px] font-black text-slate-500 tracking-widest uppercase">
-                            <span>EDK ULTRA PRO</span>
+                            <span>EDK PRO v12.1</span>
                             <div className="flex gap-2 items-center">
                                 <div className="w-4 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
@@ -172,13 +125,12 @@
 
                         <header className="px-6 py-6 flex justify-between items-center bg-slate-900/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
-                                    <img src="icon.png" className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
-                                    <span className="text-[10px] font-black absolute italic">EDK</span>
+                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex flex-col items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
+                                    <span className="text-[10px] font-black absolute italic uppercase">EDK</span>
                                 </div>
                                 <div>
-                                    <h1 className="text-sm font-black tracking-tighter italic uppercase leading-none mb-1">EDK App Pro v6.3</h1>
-                                    <p className="text-[9px] text-green-400 font-bold uppercase tracking-tighter">En Línea ✅</p>
+                                    <h1 className="text-sm font-black tracking-tighter italic uppercase leading-none mb-1">EDK App Pro</h1>
+                                    <p className="text-[9px] text-green-400 font-bold uppercase tracking-tighter italic tracking-widest">Global Network ✅</p>
                                 </div>
                             </div>
                             <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
@@ -190,31 +142,35 @@
                             {showQR ? (
                                 <div className="animate-in space-y-6 pt-10 text-center">
                                     <div className="glass-card p-8 rounded-[3rem]">
-                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter text-blue-400">Acceso Instantáneo</h2>
+                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter text-blue-400 leading-none">Acceso App</h2>
                                         <div id="qrcode" ref={qrRef} className="bg-white p-2 rounded-2xl inline-block shadow-2xl"></div>
-                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono">{window.location.href}</p>
+                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono uppercase">{window.location.href}</p>
                                     </div>
-                                    <button onClick={() => setShowQR(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Regresar</button>
+                                    <button onClick={() => setShowQR(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-4">Volver</button>
                                 </div>
                             ) : (
                                 <>
                                     {activeTab === 'home' && (
                                         <div className="space-y-6 animate-in">
-                                            <div className="p-7 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 shadow-2xl relative overflow-hidden group">
-                                                <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none mb-2">EDKSTUDIOS</h2>
-                                                <p className="text-blue-100 text-[11px] mb-8 font-medium">La hermandad más rápida de Roblox.</p>
-                                                <a href="https://www.roblox.com/share/g/89024247" target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl active:scale-95 transition-all">Entrar al Grupo <Icon name="send" className="w-3 h-3" /></a>
-                                                <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
+                                            {/* BANNER RESTAURADO AL FONDO ANTERIOR */}
+                                            <div className="p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group min-h-[220px] flex flex-col justify-end border border-white/10 bg-gradient-to-br from-blue-600 to-indigo-900">
+                                                <div className="relative z-10">
+                                                    <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase leading-none">EDKSTUDIOS</h2>
+                                                    <p className="text-blue-100 text-[11px] mb-6 font-medium italic opacity-80 uppercase tracking-widest leading-none">Comunidad líder en Roblox</p>
+                                                    <a href="https://www.roblox.com/share/g/89024247" target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl active:scale-95 transition-all">Unirse <Icon name="users" className="w-3 h-3" /></a>
+                                                </div>
+                                                <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700" />
                                             </div>
+
                                             <div className="glass-card p-6 rounded-[2.5rem]">
-                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest leading-none"><Icon name="shield" className="w-3.5 h-3.5" /> Estructura Oficial</h3>
+                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest leading-none uppercase tracking-tighter"><Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía HD Admin</h3>
                                                 <div className="space-y-3">
-                                                    <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5">
+                                                    <div className="flex items-center justify-between p-4 rounded-3xl bg-slate-950/40 border border-white/5 transition-all">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-red-500 shadow-inner"><Icon name="shieldCheck" className="w-5 h-5" /></div>
-                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase">@27kDomin</p></div>
+                                                            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-red-500 shadow-inner border border-white/5"><Icon name="shield" className="w-5 h-5" /></div>
+                                                            <div><p className="font-black text-sm uppercase leading-none mb-1">HeadAdmin</p><p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">@27kDomin</p></div>
                                                         </div>
-                                                        <Icon name="check" className="w-4 h-4 text-blue-500/40" />
+                                                        <VerifiedBadge />
                                                     </div>
                                                 </div>
                                             </div>
@@ -224,94 +180,40 @@
                                     {activeTab === 'youtube' && (
                                         <div className="animate-in space-y-6 text-center pt-4">
                                             <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
-                                                <Icon name="yt" className="w-12 h-12 text-white mx-auto mb-4" />
-                                                <h2 className="text-xl font-black italic uppercase tracking-tighter">@3ldramaking</h2>
-                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest leading-none">683 SUBS</span>
+                                                <YouTubeIcon className="w-12 h-12 text-white mx-auto mb-4" />
+                                                <h2 className="text-xl font-black italic uppercase tracking-tighter text-white uppercase leading-none">@3ldramaking</h2>
+                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest leading-none uppercase">683 SUBS</span>
                                             </div>
-                                            <button onClick={toggleMusic} className={`w-full p-1.5 rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-800 shadow-2xl transition-all active:scale-95`}>
-                                                <div className="w-full p-6 bg-slate-900/60 rounded-[2rem] flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl ${isPlaying ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'}`}><Icon name={isPlaying ? "pause" : "play"} className="w-6 h-6" /></div>
-                                                        <div className="text-left">
-                                                            <p className="text-[10px] font-black uppercase text-blue-400 tracking-tighter italic leading-none mb-1">EDK Music</p>
-                                                            <p className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Build Together</p>
-                                                        </div>
-                                                    </div>
-                                                    {isPlaying && <div className="flex gap-1 items-end h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
-                                                </div>
-                                            </button>
-                                            <a href="https://www.youtube.com/@3ldramaking" target="_blank" className="bg-red-600/20 border border-red-500/30 text-white w-full py-5 rounded-3xl font-black text-xs uppercase flex items-center justify-center gap-2 no-underline hover:bg-red-600/30 transition-all shadow-xl">Canal de YouTube</a>
+                                            <a href="https://www.youtube.com/@3ldramaking" target="_blank" className="bg-red-600/20 border border-red-500/30 text-white w-full py-5 rounded-3xl font-black text-xs uppercase flex items-center justify-center no-underline shadow-xl uppercase tracking-widest">Ir al Canal</a>
                                         </div>
                                     )}
 
-                                    {activeTab === 'community' && (
-                                        <div className="animate-in h-full flex flex-col">
-                                            {!hasProfile ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center py-20">
-                                                    <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mb-6 border border-blue-500/30 shadow-lg shadow-blue-500/20">
-                                                        <Icon name="user" className="w-10 h-10 text-blue-500" />
-                                                    </div>
-                                                    <h2 className="text-2xl font-black uppercase italic mb-2 tracking-tighter">Entrar al Chat</h2>
-                                                    <p className="text-xs text-slate-400 mb-8 max-w-[220px]">Escribe tu apodo y usa emojis para chatear instantáneamente.</p>
-                                                    
-                                                    {/* INPUT DE NOMBRE: FONDO BLANCO, TEXTO NEGRO */}
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Tu nombre 💬" 
-                                                        value={userName}
-                                                        onChange={(e) => setUserName(e.target.value)}
-                                                        className="w-full edk-input rounded-2xl p-5 text-center text-sm outline-none focus:ring-4 focus:ring-blue-500/50 mb-4 shadow-xl"
-                                                    />
-                                                    
-                                                    <button onClick={saveProfile} className="w-full bg-blue-600 p-5 rounded-2xl font-black uppercase text-[11px] shadow-lg active:scale-95 transition-all">Ingresar Ahora</button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col h-full animate-in">
-                                                    <div className="flex items-center justify-between mb-6 px-2">
-                                                        <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none text-blue-400">Chat Comunitario</h2>
-                                                        <button onClick={() => {setHasProfile(false); localStorage.removeItem('edk_username')}} className="text-[8px] text-slate-500 font-bold uppercase border border-white/10 px-3 py-1 rounded-lg">Cambiar Nombre</button>
-                                                    </div>
-
-                                                    <div className="mb-6 glass-card p-4 rounded-[2.5rem] sticky top-0 z-10 shadow-2xl border-white/10">
-                                                        <div className="flex gap-3">
-                                                            {/* INPUT DE MENSAJE: FONDO BLANCO, TEXTO NEGRO */}
-                                                            <input 
-                                                                type="text" 
-                                                                value={newComment} 
-                                                                onChange={(e) => setNewComment(e.target.value)}
-                                                                placeholder="Escribe algo rápido..." 
-                                                                className="flex-1 edk-input rounded-xl px-4 text-xs outline-none"
-                                                                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                                                            />
-                                                            <button onClick={handleSend} className="bg-blue-600 p-3 rounded-xl shadow-lg active:scale-90 transition-transform"><Icon name="send" className="w-4 h-4 text-white" /></button>
+                                    {activeTab === 'team' && (
+                                        <div className="animate-in space-y-6 pt-4 pb-10">
+                                            <div className="flex items-center gap-3 mb-6 px-2">
+                                                <PremiumIcon className="w-8 h-8 text-white" />
+                                                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Staff Oficial</h2>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {staffList.map((person, idx) => (
+                                                    <div key={idx} className="team-card p-6 rounded-[2.2rem] shadow-xl relative overflow-hidden group">
+                                                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-8 -mt-8 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors"></div>
+                                                        <div className="flex flex-col gap-2 relative z-10">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${person.color}`}>{person.role}</span>
+                                                                {person.verified && <VerifiedBadge className="w-5 h-5 shadow-lg" />}
+                                                            </div>
+                                                            <h3 className="text-lg font-black tracking-tight text-white uppercase italic leading-none">{person.names}</h3>
                                                         </div>
                                                     </div>
-
-                                                    <div className="space-y-4 pb-10">
-                                                        {comments.length === 0 && <p className="text-center py-10 text-[9px] text-slate-600 uppercase font-black tracking-widest italic opacity-40">¡Sé el primero en hablar!</p>}
-                                                        {comments.map(comment => (
-                                                            <div key={comment.id} className="animate-in">
-                                                                <div className={`glass-card p-4 rounded-[1.8rem] space-y-1 shadow-inner ${comment.isOwner ? 'border-blue-500/30' : ''}`}>
-                                                                    <div className="flex justify-between items-center mb-1">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className={`text-[10px] font-black uppercase ${comment.isOwner ? 'text-blue-400' : 'text-slate-500'}`}>{comment.user}</span>
-                                                                            {comment.isOwner && <Icon name="shieldCheck" className="w-3 h-3 text-blue-400" />}
-                                                                        </div>
-                                                                        <span className="text-[8px] text-slate-700 font-bold">{comment.time}</span>
-                                                                    </div>
-                                                                    <p className="text-xs text-slate-200 leading-relaxed font-medium">{comment.text}</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 
                                     {activeTab === 'owner' && (
-                                        <div className="animate-in pt-4">
-                                            <div className="glass-card p-10 rounded-[4rem] text-center relative overflow-hidden shadow-2xl">
+                                        <div className="animate-in pt-4 text-center">
+                                            <div className="glass-card p-10 rounded-[4rem] relative overflow-hidden shadow-2xl">
                                                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-600/20 to-transparent"></div>
                                                 <div className="relative pt-6 mb-6">
                                                     <div className="w-32 h-32 bg-gradient-to-tr from-blue-600 via-blue-400 to-cyan-300 rounded-full p-1.5 mx-auto profile-glow">
@@ -320,13 +222,18 @@
                                                             <div className="hidden absolute inset-0 items-center justify-center text-white/20 bg-slate-800"><Icon name="user" className="w-14 h-14" /></div>
                                                         </div>
                                                     </div>
-                                                    <div className="absolute bottom-1 right-1/2 translate-x-12 bg-blue-600 p-2.5 rounded-full border-4 border-slate-900 shadow-xl"><Icon name="crown" className="w-5 h-5 text-white" /></div>
+                                                    <div className="absolute bottom-1 right-1/2 translate-x-12 bg-blue-600 p-2.5 rounded-full border-4 border-slate-900 shadow-xl">
+                                                        <Icon name="crown" className="w-5 h-5 text-white" />
+                                                    </div>
                                                 </div>
-                                                <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">MUNEEB_ALT</h2>
-                                                <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10 italic">@ElDramaKing_ALT</p>
+                                                <div className="flex items-center justify-center gap-2 mb-1">
+                                                    <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">MUNEEB_ALT</h2>
+                                                    <VerifiedBadge className="w-7 h-7 shadow-lg" />
+                                                </div>
+                                                <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10 italic leading-none">@ElDramaKing_ALT</p>
                                                 <div className="bg-slate-950/60 p-6 rounded-[2.5rem] border border-white/5 text-left flex justify-between items-center group shadow-inner">
-                                                    <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none uppercase">Rango Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter leading-none uppercase">Founder & Owner</p></div>
-                                                    <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shadow-lg"><Icon name="check" className="w-6 h-6 text-green-500" /></div>
+                                                    <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none uppercase tracking-tighter">Rango Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter leading-none uppercase tracking-tighter">Founder & Owner</p></div>
+                                                    <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center shadow-lg"><VerifiedBadge className="w-6 h-6" /></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -336,19 +243,24 @@
                         </main>
 
                         <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-4 flex justify-around items-center z-[100]">
-                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'home' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase">Inicio</span>
+                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'home' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Inicio</span>
                             </button>
-                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'youtube' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="yt" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase">Youtube</span>
+                            <button onClick={() => setActiveTab('youtube')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
+                                <YouTubeIcon className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase leading-none">Youtube</span>
                             </button>
-                            <div className="relative -top-6">
-                                <button onClick={() => setActiveTab('community')} className={`w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_25px_rgba(37,99,235,0.4)] border-4 border-slate-900 transform active:scale-90 transition-all ${activeTab === 'community' ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                                    <Icon name="msg" className="w-6 h-6 text-white" />
+                            
+                            <div className="relative -top-8 flex gap-4">
+                                <button onClick={() => window.open('https://discord.gg/Bnd2puz7BZ', '_blank')} className="w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_25px_rgba(88,101,242,0.4)] border-4 border-slate-900 transform active:scale-90 transition-all bg-[#5865F2]">
+                                    <Icon name="discord" className="w-7 h-7 text-white" />
+                                </button>
+                                <button onClick={() => setActiveTab('team')} className={`w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_25px_rgba(255,255,255,0.2)] border-4 border-slate-900 transform active:scale-90 transition-all ${activeTab === 'team' ? 'bg-white text-black' : 'bg-slate-800 text-white'}`}>
+                                    <PremiumIcon className="w-7 h-7" />
                                 </button>
                             </div>
+
                             <button onClick={() => setActiveTab('owner')} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'owner' ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter leading-none uppercase">Owner</span>
+                                <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter uppercase leading-none uppercase tracking-widest">Owner</span>
                             </button>
                         </nav>
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
@@ -362,4 +274,3 @@
     </script>
 </body>
 </html>
-
