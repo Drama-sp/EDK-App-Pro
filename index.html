@@ -66,15 +66,41 @@
         .profile-glow {
             box-shadow: 0 0 25px rgba(37, 99, 235, 0.5);
         }
+
+        .comment-bubble {
+            position: relative;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .custom-modal {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuración Global proporcionada por el entorno
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edk-app-pro-default';
+
+        window.EDK_FIREBASE = { auth, db, appId, signInAnonymously, signInWithCustomToken, onAuthStateChanged, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, Timestamp };
+    </script>
+
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Componente de Iconos SVG Internos
         const Icon = ({ name, className = "w-6 h-6" }) => {
             const icons = {
                 crown: <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />,
@@ -84,16 +110,15 @@
                 users: <React.Fragment><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></React.Fragment>,
                 star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
                 home: <React.Fragment><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></React.Fragment>,
-                external: <React.Fragment><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 22 3 22 10" /><line x1="10" y1="14" x2="22" y2="2" /></React.Fragment>,
-                bell: <React.Fragment><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></React.Fragment>,
-                checkCircle: <React.Fragment><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></React.Fragment>,
+                message: <React.Fragment><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></React.Fragment>,
                 youtube: <React.Fragment><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2C1 8.14 1 12 1 12s0 3.86.46 5.58a2.78 2.78 0 0 0 1.94 2c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2C23 15.86 23 12 23 12s0-3.86-.46-5.58z" /><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" /></React.Fragment>,
                 play: <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />,
                 pause: <React.Fragment><rect x="6" y="4" width="4" height="16" fill="currentColor" /><rect x="14" y="4" width="4" height="16" fill="currentColor" /></React.Fragment>,
-                alert: <React.Fragment><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></React.Fragment>,
-                chevronRight: <polyline points="9 18 15 12 9 6" />,
                 qr: <React.Fragment><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="3" height="3" /><rect x="18" y="18" width="3" height="3" /></React.Fragment>,
-                download: <React.Fragment><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></React.Fragment>
+                download: <React.Fragment><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></React.Fragment>,
+                send: <React.Fragment><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></React.Fragment>,
+                reply: <React.Fragment><polyline points="9 17 4 12 9 7" /><path d="M20 18v-2a4 4 0 0 0-4-4H4" /></React.Fragment>,
+                checkCircle: <React.Fragment><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></React.Fragment>
             };
             return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name] || <circle cx="12" cy="12" r="10" />}</svg>;
         };
@@ -101,45 +126,100 @@
         const App = () => {
             const [activeTab, setActiveTab] = useState('home');
             const [isPlaying, setIsPlaying] = useState(false);
-            const [hasError, setHasError] = useState(false);
             const [showQR, setShowQR] = useState(false);
-            const [expandedRank, setExpandedRank] = useState(null);
             const [showInstallGuide, setShowInstallGuide] = useState(false);
+            const [expandedRank, setExpandedRank] = useState(null);
+            const [user, setUser] = useState(null);
+            
+            // Estado de Comentarios (Persistente)
+            const [comments, setComments] = useState([]);
+            const [newComment, setNewComment] = useState("");
+            const [replyingTo, setReplyingTo] = useState(null);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
+
             const audioRef = useRef(null);
             const qrRef = useRef(null);
 
             const groupLink = "https://www.roblox.com/share/g/89024247";
             const youtubeChannel = "https://www.youtube.com/@3ldramaking";
-            const songFile = "musica.mp3"; 
 
+            // Inicializar Auth y Firebase
             useEffect(() => {
+                if (!window.EDK_FIREBASE) return;
+                const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.EDK_FIREBASE;
+
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+
+                const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+                
                 window.addEventListener('beforeinstallprompt', (e) => {
                     e.preventDefault();
                     setDeferredPrompt(e);
                 });
+
+                return () => unsubscribe();
             }, []);
+
+            // Escuchar comentarios en tiempo real
+            useEffect(() => {
+                if (!user || !window.EDK_FIREBASE) return;
+                const { db, appId, collection, onSnapshot } = window.EDK_FIREBASE;
+                
+                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+                const unsubscribe = onSnapshot(commentsRef, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Ordenamos manualmente por timestamp (más reciente primero)
+                    setComments(data.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0)));
+                }, (err) => console.error("Error cargando comentarios:", err));
+
+                return () => unsubscribe();
+            }, [user]);
 
             useEffect(() => {
                 if (showQR && qrRef.current) {
                     qrRef.current.innerHTML = "";
-                    new QRCode(qrRef.current, {
-                        text: window.location.href,
-                        width: 180,
-                        height: 180,
-                        colorDark: "#020617",
-                        colorLight: "#ffffff",
-                    });
+                    new QRCode(qrRef.current, { text: window.location.href, width: 180, height: 180, colorDark: "#020617", colorLight: "#ffffff" });
                 }
             }, [showQR]);
 
-            const installApp = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') setDeferredPrompt(null);
-                } else {
-                    setShowInstallGuide(true);
+            const handleSendComment = async () => {
+                if (!newComment.trim() || !user || !window.EDK_FIREBASE) return;
+                const { db, appId, collection, addDoc, doc, updateDoc, arrayUnion, Timestamp } = window.EDK_FIREBASE;
+                
+                const commentData = {
+                    user: user.uid === "OWNER_ID_PLACEHOLDER" ? "Muneeb_ALT" : `User_${user.uid.slice(0, 4)}`,
+                    text: newComment,
+                    timestamp: Timestamp.now(),
+                    isOwner: user.uid === "OWNER_ID_PLACEHOLDER", // Aquí podrías poner tu UID real
+                    replies: []
+                };
+
+                try {
+                    if (replyingTo) {
+                        const commentDoc = doc(db, 'artifacts', appId, 'public', 'data', 'comments', replyingTo);
+                        await updateDoc(commentDoc, {
+                            replies: arrayUnion({
+                                id: Date.now(),
+                                user: commentData.user,
+                                text: newComment,
+                                timestamp: Date.now()
+                            })
+                        });
+                        setReplyingTo(null);
+                    } else {
+                        const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+                        await addDoc(commentsRef, commentData);
+                    }
+                    setNewComment("");
+                } catch (err) {
+                    console.error("Error al enviar:", err);
                 }
             };
 
@@ -147,12 +227,7 @@
                 const audio = audioRef.current;
                 if (!audio) return;
                 if (isPlaying) { audio.pause(); setIsPlaying(false); } 
-                else { 
-                    setHasError(false); 
-                    audio.play()
-                        .then(() => setIsPlaying(true))
-                        .catch(() => { setHasError(true); setIsPlaying(false); }); 
-                }
+                else { audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false)); }
             };
 
             const adminRanks = [
@@ -165,51 +240,44 @@
 
             return (
                 <div className="flex justify-center items-center min-h-screen p-0 sm:p-4 relative text-white">
-                    <audio ref={audioRef} src={songFile} onEnded={() => setIsPlaying(false)} preload="auto" />
+                    <audio ref={audioRef} src="musica.mp3" onEnded={() => setIsPlaying(false)} preload="auto" />
 
                     <div className="relative w-full max-w-[410px] h-[840px] bg-slate-900 rounded-[3.5rem] shadow-2xl border-[12px] border-slate-800 overflow-hidden flex flex-col animate-in">
                         
-                        {/* Notch Area */}
-                        <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[11px] font-bold text-slate-400 italic tracking-widest">
-                            <span>EDK v3.7</span>
+                        <div className="h-10 bg-slate-900 flex justify-between items-center px-10 pt-4 z-50 text-[11px] font-bold text-slate-400 italic tracking-widest uppercase">
+                            <span>EDK v4.0 PRO</span>
                             <div className="flex gap-1.5 items-center">
                                 <div className="w-4 h-2 bg-blue-500 rounded-full"></div>
                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                             </div>
                         </div>
 
-                        {/* Header */}
                         <header className="px-6 py-6 flex justify-between items-center bg-slate-900/80 backdrop-blur-lg border-b border-white/5 sticky top-0 z-40">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20 shadow-lg relative overflow-hidden">
-                                    <img src="icon.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
+                                    <img src="icon.png" className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
                                     <span className="text-[10px] font-black absolute">EDK</span>
-                                    <span className="text-[6px] font-bold mt -0.5">STUDIOS</span>
                                 </div>
                                 <div>
-                                    <h1 className="text-sm font-black tracking-tighter uppercase italic leading-none">EDK App Pro</h1>
-                                    <p className="text-[9px] text-green-400 font-bold uppercase mt-1">Verificado ✅</p>
+                                    <h1 className="text-sm font-black tracking-tighter italic leading-none uppercase">EDK App Pro</h1>
+                                    <p className="text-[9px] text-green-400 font-bold uppercase mt-1">Nube Activa 🌐</p>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={installApp} className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg active:scale-90 transition-all border border-blue-400">
-                                    <Icon name="download" className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
-                                    <Icon name="qr" className="w-4 h-4" />
-                                </button>
+                                <button onClick={() => setShowInstallGuide(true)} className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg active:scale-90 border border-blue-400"><Icon name="download" className="w-4 h-4" /></button>
+                                <button onClick={() => setShowQR(!showQR)} className={`p-2.5 rounded-2xl border transition-all ${showQR ? 'bg-white text-blue-600' : 'bg-slate-800 text-slate-400 border-white/5'}`}><Icon name="qr" className="w-4 h-4" /></button>
                             </div>
                         </header>
 
                         <main className="flex-1 overflow-y-auto px-6 pt-4 pb-28 scrollbar-hide">
                             {showInstallGuide && (
                                 <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in" onClick={() => setShowInstallGuide(false)}>
-                                    <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl text-center" onClick={e => e.stopPropagation()}>
-                                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"><Icon name="download" className="text-white w-8 h-8" /></div>
-                                        <h3 className="text-lg font-black uppercase italic mb-4">Instalar App</h3>
+                                    <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 text-center" onClick={e => e.stopPropagation()}>
+                                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><Icon name="download" className="text-white w-8 h-8" /></div>
+                                        <h3 className="text-lg font-black uppercase italic mb-4">Instalar en el Móvil</h3>
                                         <div className="space-y-4 text-left text-sm text-slate-300">
-                                            <p><strong>iPhone:</strong> Toca el icono de 'Compartir' y luego 'Añadir a pantalla de inicio'.</p>
-                                            <p><strong>Android:</strong> Pulsa los 3 puntos del navegador y selecciona 'Instalar aplicación'.</p>
+                                            <p><strong>iPhone:</strong> Toca 'Compartir' (cuadrado con flecha) y luego 'Añadir a pantalla de inicio'.</p>
+                                            <p><strong>Android:</strong> Pulsa los 3 puntos y selecciona 'Instalar aplicación'.</p>
                                         </div>
                                         <button onClick={() => setShowInstallGuide(false)} className="mt-8 bg-white text-black w-full py-4 rounded-2xl font-black uppercase text-xs">Cerrar</button>
                                     </div>
@@ -219,9 +287,9 @@
                             {showQR ? (
                                 <div className="animate-in space-y-6 pt-10 text-center">
                                     <div className="bg-white/5 p-8 rounded-[3rem] border border-white/10">
-                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter">Comparte la App</h2>
+                                        <h2 className="text-xl font-black italic mb-6 uppercase tracking-tighter">Acceso Global</h2>
                                         <div id="qrcode" ref={qrRef} className="bg-white p-2 rounded-2xl inline-block shadow-2xl"></div>
-                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono">{window.location.href}</p>
+                                        <p className="text-[9px] text-slate-500 mt-8 truncate px-4 font-mono uppercase italic">{window.location.href}</p>
                                     </div>
                                     <button onClick={() => setShowQR(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Volver</button>
                                 </div>
@@ -230,46 +298,27 @@
                                     {activeTab === 'home' && (
                                         <div className="space-y-6 animate-in">
                                             <div className="p-7 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-indigo-900 shadow-2xl relative overflow-hidden group">
-                                                <div className="relative z-10">
-                                                    <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase">EDKSTUDIOS</h2>
-                                                    <p className="text-blue-100 text-[11px] mb-8 font-medium">Únete a la comunidad líder en Roblox.</p>
-                                                    <a href={groupLink} target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase inline-flex items-center gap-2 no-underline shadow-xl active:scale-95 transition-all">
-                                                        Entrar al Grupo <Icon name="external" className="w-3 h-3" />
-                                                    </a>
-                                                </div>
+                                                <h2 className="text-3xl font-black mb-1 italic tracking-tighter uppercase">EDKSTUDIOS</h2>
+                                                <p className="text-blue-100 text-[11px] mb-8 font-medium">Comunidad líder en Roblox.</p>
+                                                <a href={groupLink} target="_blank" className="bg-white text-blue-700 px-6 py-3 rounded-2xl font-black text-[10px] uppercase no-underline inline-flex items-center gap-2 shadow-xl">Entrar al Grupo <Icon name="external" className="w-3 h-3" /></a>
                                                 <Icon name="users" className="absolute -right-8 -bottom-8 w-44 h-44 opacity-10 rotate-12" />
                                             </div>
 
                                             <div className="bg-slate-800/40 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
-                                                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-5 flex items-center gap-2">
-                                                    <Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía HD Admin
-                                                </h3>
+                                                <h3 className="text-[10px] font-black uppercase text-blue-400 mb-5 flex items-center gap-2 tracking-widest"><Icon name="shield" className="w-3.5 h-3.5" /> Jerarquía HD Admin</h3>
                                                 <div className="space-y-3">
                                                     {adminRanks.map((rank, i) => (
                                                         <div key={i} onClick={() => rank.user ? setExpandedRank(expandedRank === rank.level ? null : rank.level) : null}
-                                                             className={`flex flex-col p-4 rounded-3xl bg-gradient-to-r ${rank.color} to-transparent border border-white/5 transition-all cursor-pointer ${expandedRank === rank.level ? 'shadow-lg border-white/20 scale-[1.02]' : ''}`}>
+                                                             className={`flex flex-col p-4 rounded-3xl bg-gradient-to-r ${rank.color} to-transparent border border-white/5 transition-all cursor-pointer ${expandedRank === rank.level ? 'shadow-lg border-white/20' : ''}`}>
                                                             <div className="flex items-center justify-between">
                                                                 <div className="flex items-center gap-4">
-                                                                    <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
-                                                                        <Icon name={rank.icon} className={`w-5 h-5 ${rank.iconColor}`} />
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="font-black text-sm block tracking-tight uppercase">{rank.name}</span>
-                                                                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-none">Nivel {rank.level}</span>
-                                                                    </div>
+                                                                    <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center border border-white/5"><Icon name={rank.icon} className={`w-5 h-5 ${rank.iconColor}`} /></div>
+                                                                    <div><span className="font-black text-sm block uppercase">{rank.name}</span><span className="text-[9px] text-slate-500 font-bold leading-none">Nivel {rank.level}</span></div>
                                                                 </div>
                                                                 {rank.user && <Icon name="chevronRight" className={`w-4 h-4 text-slate-600 transition-transform ${expandedRank === rank.level ? 'rotate-90' : ''}`} />}
                                                             </div>
                                                             {expandedRank === rank.level && rank.user && (
-                                                                <div className="mt-4 pt-4 border-t border-white/5 animate-in">
-                                                                    <div className="bg-slate-950/50 p-3 rounded-2xl flex items-center gap-3">
-                                                                        <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center"><Icon name="user" className="w-4 h-4 text-blue-400" /></div>
-                                                                        <div className="flex flex-col text-left">
-                                                                            <span className="text-[11px] font-black tracking-tight">{rank.user}</span>
-                                                                            {rank.displayName && <span className="text-[9px] text-slate-500 italic uppercase font-bold tracking-tighter">{rank.displayName}</span>}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                                <div className="mt-4 pt-4 border-t border-white/5 animate-in"><div className="bg-slate-950/50 p-3 rounded-2xl flex items-center gap-3"><div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center"><Icon name="user" className="w-4 h-4 text-blue-400" /></div><div className="flex flex-col text-left"><span className="text-[11px] font-black tracking-tight">{rank.user}</span>{rank.displayName && <span className="text-[9px] text-slate-500 italic uppercase font-bold tracking-tighter">{rank.displayName}</span>}</div></div></div>
                                                             )}
                                                         </div>
                                                     ))}
@@ -279,30 +328,81 @@
                                     )}
 
                                     {activeTab === 'youtube' && (
-                                        <div className="animate-in space-y-6">
-                                            <div className="text-center bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
-                                                <Icon name="youtube" className="w-12 h-12 text-white mx-auto mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
-                                                <h2 className="text-xl font-black italic tracking-tighter uppercase leading-none">@3ldramaking & @edkgamesr</h2>
-                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg tracking-widest inline-block mt-3">682 SUBS</span>
+                                        <div className="animate-in space-y-6 text-center">
+                                            <div className="bg-red-600/10 p-8 rounded-[3rem] border border-red-500/20 shadow-xl">
+                                                <Icon name="youtube" className="w-12 h-12 text-white mx-auto mb-4" />
+                                                <h2 className="text-xl font-black italic uppercase leading-none">@3ldramaking</h2>
+                                                <span className="px-4 py-1.5 bg-red-600 text-[10px] font-black rounded-full text-white uppercase shadow-lg inline-block mt-3 tracking-widest">683 SUBS</span>
                                             </div>
-
-                                            <div className={`p-1.5 rounded-[2.5rem] bg-gradient-to-r transition-all duration-700 ${isPlaying ? 'from-red-500 to-red-800 scale-[1.03] shadow-2xl' : hasError ? 'from-red-900 to-slate-900 border-red-500 border' : 'from-slate-700 to-slate-800'}`}>
+                                            <div className="p-1.5 rounded-[2.5rem] bg-gradient-to-r from-red-500 to-red-800 shadow-2xl">
                                                 <div className="w-full p-6 bg-slate-900/60 rounded-[2rem] flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <button onClick={toggleMusic} className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-90 ${isPlaying ? 'bg-white text-red-600' : hasError ? 'bg-red-900 text-white' : 'bg-red-600 text-white'}`}>
-                                                            <Icon name={isPlaying ? "pause" : hasError ? "alert" : "play"} className="w-6 h-6" />
-                                                        </button>
-                                                        <div className="text-left flex-1 px-2">
-                                                            <p className={`text-[10px] font-black uppercase tracking-widest ${hasError ? 'text-red-500' : 'text-slate-500'}`}>{hasError ? 'ERROR DE AUDIO' : isPlaying ? 'REPRODUCIENDO' : 'TEMA OFICIAL'}</p>
-                                                            <p className="text-sm font-black italic uppercase leading-none tracking-tighter uppercase">Build Together</p>
-                                                            {isPlaying && <div className="flex gap-1 items-end mt-2 h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
-                                                        </div>
+                                                    <button onClick={toggleMusic} className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl active:scale-90 ${isPlaying ? 'bg-white text-red-600' : 'bg-red-600 text-white'}`}><Icon name={isPlaying ? "pause" : "play"} className="w-6 h-6" /></button>
+                                                    <div className="text-right flex-1 px-4">
+                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">BUILD TOGETHER</p>
+                                                        <p className="text-xs font-bold text-white uppercase leading-none italic uppercase">Tema Oficial</p>
+                                                        {isPlaying && <div className="flex justify-end gap-1 items-end mt-2 h-4"><div className="music-bar"></div><div className="music-bar bar-2"></div><div className="music-bar bar-3"></div></div>}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <a href={youtubeChannel} target="_blank" className="bg-red-600/20 border border-red-500/30 text-white w-full py-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 no-underline hover:bg-red-600/30 transition-all shadow-xl">
-                                                Canal de YouTube <Icon name="external" className="w-4 h-4" />
-                                            </a>
+                                            <a href={youtubeChannel} target="_blank" className="bg-red-600/20 border border-red-500/30 text-white w-full py-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 no-underline hover:bg-red-600/30 transition-all shadow-xl">Canal de YouTube <Icon name="external" className="w-4 h-4" /></a>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'community' && (
+                                        <div className="animate-in flex flex-col h-full pb-4">
+                                            <div className="flex items-center gap-2 mb-6 px-2">
+                                                <Icon name="message" className="w-5 h-5 text-blue-500" />
+                                                <h2 className="text-xl font-black italic uppercase tracking-tighter">Comunidad Global</h2>
+                                            </div>
+
+                                            <div className="mb-6 bg-slate-800/40 p-4 rounded-[2rem] border border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                                                {replyingTo && (
+                                                    <div className="flex justify-between items-center bg-blue-600/20 p-2 rounded-xl mb-2 text-[10px] font-bold">
+                                                        <span className="truncate italic px-2">Respondiendo...</span>
+                                                        <button onClick={() => setReplyingTo(null)} className="text-red-400 px-2 uppercase text-[8px]">Cancelar</button>
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-3">
+                                                    <input 
+                                                        type="text" 
+                                                        value={newComment} 
+                                                        onChange={(e) => setNewComment(e.target.value)}
+                                                        placeholder={replyingTo ? "Tu respuesta..." : "Escribe algo permanente..."} 
+                                                        className="flex-1 bg-slate-900/50 border-none rounded-xl px-4 text-xs focus:ring-1 focus:ring-blue-500 outline-none text-white"
+                                                    />
+                                                    <button onClick={handleSendComment} className="bg-blue-600 p-3 rounded-xl shadow-lg active:scale-90"><Icon name="send" className="w-4 h-4 text-white" /></button>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {comments.length === 0 && <p className="text-center text-[10px] text-slate-500 uppercase font-black py-10 tracking-[0.3em]">Cargando mensajes de la nube...</p>}
+                                                {comments.map(comment => (
+                                                    <div key={comment.id} className="animate-in">
+                                                        <div className="comment-bubble p-4 rounded-[1.8rem] space-y-2">
+                                                            <div className="flex justify-between items-center">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-[10px] font-black uppercase ${comment.isOwner ? 'text-blue-400' : 'text-slate-400'}`}>{comment.user}</span>
+                                                                    {comment.isOwner && <Icon name="checkCircle" className="w-3 h-3 text-blue-500" />}
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-xs text-slate-300 leading-relaxed font-medium">{comment.text}</p>
+                                                            <button 
+                                                                onClick={() => setReplyingTo(comment.id)}
+                                                                className="flex items-center gap-1.5 text-[9px] font-black text-blue-500 uppercase tracking-widest mt-2"
+                                                            >
+                                                                <Icon name="reply" className="w-3 h-3" /> Responder
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        {comment.replies && comment.replies.map((reply, rid) => (
+                                                            <div key={rid} className="ml-8 mt-2 comment-bubble p-3 rounded-[1.4rem] bg-slate-800/20 border-l-2 border-blue-600/30">
+                                                                <span className="text-[9px] font-black text-slate-500 uppercase">{reply.user}</span>
+                                                                <p className="text-[11px] text-slate-400 font-medium">{reply.text}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 
@@ -313,35 +413,22 @@
                                                 <div className="relative pt-6 mb-6">
                                                     <div className="w-32 h-32 bg-gradient-to-tr from-blue-600 via-blue-400 to-cyan-300 rounded-full p-1 mx-auto profile-glow">
                                                         <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center border-4 border-slate-900 overflow-hidden relative">
-                                                            {/* Imagen del Owner: OWNER.png */}
                                                             <img 
                                                                 src="OWNER.png" 
                                                                 alt="Owner" 
                                                                 className="w-full h-full object-cover" 
-                                                                onError={(e) => {
-                                                                    e.target.style.display = 'none';
-                                                                    e.target.nextSibling.style.display = 'flex';
-                                                                }} 
+                                                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
                                                             />
-                                                            <div className="hidden absolute inset-0 items-center justify-center text-white/50 bg-slate-800">
-                                                                <Icon name="user" className="w-14 h-14" />
-                                                            </div>
+                                                            <div className="hidden absolute inset-0 items-center justify-center text-white/50 bg-slate-800"><Icon name="user" className="w-14 h-14" /></div>
                                                         </div>
                                                     </div>
-                                                    <div className="absolute bottom-1 right-1/2 translate-x-12 bg-blue-600 p-2.5 rounded-full border-4 border-slate-900 shadow-xl">
-                                                        <Icon name="crown" className="w-5 h-5 text-white" />
-                                                    </div>
+                                                    <div className="absolute bottom-1 right-1/2 translate-x-12 bg-blue-600 p-2.5 rounded-full border-4 border-slate-900 shadow-xl"><Icon name="crown" className="w-5 h-5 text-white" /></div>
                                                 </div>
                                                 <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">MUNEEB_ALT</h2>
                                                 <p className="text-blue-500 font-mono text-[9px] uppercase font-bold tracking-[0.4em] mb-10">@ElDramaKing_ALT</p>
                                                 <div className="bg-slate-950/60 p-6 rounded-[2.5rem] border border-white/5 text-left flex justify-between items-center group shadow-inner">
-                                                    <div>
-                                                        <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none">Estatus Global</p>
-                                                        <p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter">Founder & Owner</p>
-                                                    </div>
-                                                    <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center">
-                                                        <Icon name="checkCircle" className="w-6 h-6 text-green-500" />
-                                                    </div>
+                                                    <div><p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 italic leading-none">Estatus Global</p><p className="text-sm font-black text-blue-100 italic uppercase tracking-tighter">Founder & Owner</p></div>
+                                                    <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center"><Icon name="checkCircle" className="w-6 h-6 text-green-500" /></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -350,26 +437,22 @@
                             )}
                         </main>
 
-                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-10 flex justify-around items-center z-[100]">
-                            <button onClick={() => {setActiveTab('home'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'home' && !showQR ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="home" className="w-7 h-7" />
-                                <span className="text-[9px] font-black uppercase italic tracking-tighter">Inicio</span>
+                        <nav className="absolute bottom-0 left-0 w-full h-24 bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 px-4 flex justify-around items-center z-[100]">
+                            <button onClick={() => {setActiveTab('home'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'home' && !showQR ? 'text-blue-500 scale-110' : 'text-slate-500'}`}>
+                                <Icon name="home" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Inicio</span>
+                            </button>
+                            <button onClick={() => {setActiveTab('youtube'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'youtube' && !showQR ? 'text-red-500 scale-110' : 'text-slate-500'}`}>
+                                <Icon name="youtube" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">YouTube</span>
                             </button>
                             
-                            <div className="relative -top-10">
-                                <a href={groupLink} target="_blank" className="w-16 h-16 bg-blue-600 rounded-[2.2rem] flex items-center justify-center shadow-[0_15px_30px_rgba(37,99,235,0.4)] border-4 border-slate-900 no-underline active:scale-90 transition-all">
-                                    <Icon name="users" className="w-8 h-8 text-white" />
-                                </a>
+                            <div className="relative -top-6">
+                                <button onClick={() => {setActiveTab('community'); setShowQR(false)}} className={`w-14 h-14 rounded-[1.8rem] flex items-center justify-center shadow-[0_10px_20px_rgba(37,99,235,0.4)] border-4 border-slate-900 transform active:scale-90 transition-all ${activeTab === 'community' ? 'bg-blue-600' : 'bg-slate-800'}`}>
+                                    <Icon name="message" className="w-6 h-6 text-white" />
+                                </button>
                             </div>
 
-                            <button onClick={() => {setActiveTab('youtube'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'youtube' && !showQR ? 'text-red-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="youtube" className="w-7 h-7" />
-                                <span className="text-[9px] font-black uppercase italic tracking-tighter">YouTube</span>
-                            </button>
-                            
-                            <button onClick={() => {setActiveTab('owner'); setShowQR(false)}} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'owner' && !showQR ? 'text-blue-500 scale-110 font-bold' : 'text-slate-500 hover:text-slate-300'}`}>
-                                <Icon name="user" className="w-7 h-7" />
-                                <span className="text-[9px] font-black uppercase italic tracking-tighter">Owner</span>
+                            <button onClick={() => {setActiveTab('owner'); setShowQR(false)}} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === 'owner' && !showQR ? 'text-blue-500 scale-110' : 'text-slate-500'}`}>
+                                <Icon name="user" className="w-6 h-6" /><span className="text-[8px] font-black uppercase italic tracking-tighter">Owner</span>
                             </button>
                         </nav>
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full"></div>
@@ -383,9 +466,4 @@
     </script>
 </body>
 </html>
-
-
-
-
-
 
