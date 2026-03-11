@@ -1,23 +1,23 @@
 {
   "name": "EDK App Pro",
-  "short_name": "EDK App",
-  "description": "App oficial de la comunidad EDKSTUDIOS",
+  "short_name": "EDK Pro",
+  "description": "Herramienta Pro de EDK Studios para la comunidad de Roblox.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#020617",
-  "theme_color": "#2563eb",
+  "theme_color": "#020617",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "src": "icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "src": "icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
     }
   ]
 }
